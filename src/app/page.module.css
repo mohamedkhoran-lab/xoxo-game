@@ -1,0 +1,355 @@
+/* ===== INTRO PAGE ===== */
+.intro-wrapper {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  overflow: hidden;
+}
+
+/* ===== STEP TRANSITIONS ===== */
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+  gap: 2rem;
+  animation: stepIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes stepIn {
+  from { opacity: 0; transform: scale(0.85) translateY(30px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes stepOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(1.05); }
+}
+
+/* ===== STEP 0 — WOW OPENING ===== */
+.opening-logo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.xo-big {
+  font-size: clamp(7rem, 25vw, 13rem);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -8px;
+  background: linear-gradient(135deg, #6c63ff 0%, #fd79a8 50%, #f9ca24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 60px rgba(108, 99, 255, 0.4));
+  animation: xoBounce 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes xoBounce {
+  from { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.opening-tagline {
+  font-size: clamp(1.1rem, 4vw, 1.6rem);
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  animation: fadeInUp 0.7s ease 0.7s both;
+}
+
+.opening-subline {
+  font-size: clamp(0.85rem, 3vw, 1rem);
+  color: var(--text-muted);
+  font-weight: 400;
+  animation: fadeInUp 0.7s ease 1s both;
+}
+
+.opening-btn {
+  animation: fadeInUp 0.7s ease 1.2s both;
+}
+
+/* ===== STEP 1 — TAUNT 1 ===== */
+.taunt-big-text {
+  font-size: clamp(1.8rem, 6vw, 3.5rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  color: var(--text-primary);
+}
+
+.taunt-big-text .highlight {
+  background: linear-gradient(135deg, var(--accent), var(--pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.emoji-big {
+  font-size: clamp(3rem, 10vw, 5rem);
+  animation: wiggle 1.5s ease-in-out infinite;
+  display: block;
+  line-height: 1;
+}
+
+/* ===== STEP 2 — TAUNT 2 ===== */
+.step2-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(108, 99, 255, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(108, 99, 255, 0.15);
+}
+
+.step2-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #6c63ff, #fd79a8, #f9ca24, #6c63ff);
+  background-size: 300%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+.step2-text {
+  font-size: clamp(1.3rem, 4.5vw, 2rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.step2-sub {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* ===== STEP 3 — CHHEE SAMET ===== */
+.step3-text {
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: -2px;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #2d3436, #636e72);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.step3-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ===== STEP 4 — MODE SELECTION ===== */
+.mode-title {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  letter-spacing: -0.5px;
+}
+
+.mode-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.mode-card {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem 1.6rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: left;
+  font-family: 'Outfit', sans-serif;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.mode-card.machine::before {
+  background: linear-gradient(135deg, rgba(108,99,255,0.06), rgba(162,155,254,0.08));
+}
+
+.mode-card.friend::before {
+  background: linear-gradient(135deg, rgba(253,121,168,0.06), rgba(232,67,147,0.08));
+}
+
+.mode-card:hover::before { opacity: 1; }
+
+.mode-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--shadow-lg);
+}
+
+.mode-card.machine:hover { border-color: var(--accent); }
+.mode-card.friend:hover  { border-color: var(--pink); }
+
+.mode-card:active { transform: scale(0.98); }
+
+.mode-card-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mode-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mode-card-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.mode-card-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.mode-card-arrow {
+  margin-left: auto;
+  font-size: 1.2rem;
+  color: var(--border);
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.mode-card:hover .mode-card-arrow { color: var(--accent); transform: translateX(4px); }
+.mode-card.friend:hover .mode-card-arrow { color: var(--pink); }
+
+/* ===== PROGRESS DOTS ===== */
+.progress-dots {
+  display: flex;
+  gap: 0.5rem;
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.3s;
+}
+
+.dot.active {
+  background: var(--accent);
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* ===== BUTTONS ===== */
+.btn-wow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.1rem 3rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: white;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 10px 30px rgba(108, 99, 255, 0.45);
+  letter-spacing: 0.01em;
+}
+
+.btn-wow:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 18px 40px rgba(108, 99, 255, 0.55);
+}
+
+.btn-wow:active { transform: scale(0.97); }
+
+.btn-pink {
+  background: linear-gradient(135deg, var(--pink), #e84393);
+  box-shadow: 0 10px 30px rgba(253, 121, 168, 0.45);
+}
+
+.btn-pink:hover {
+  box-shadow: 0 18px 40px rgba(253, 121, 168, 0.55);
+}
+
+.btn-ghost-sm {
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 100px;
+  transition: color 0.2s;
+}
+
+.btn-ghost-sm:hover { color: var(--text-primary); }
+
+/* ===== FLOATING DECORATIONS ===== */
+.float-x {
+  position: fixed;
+  font-size: 2rem;
+  font-weight: 900;
+  color: rgba(108, 99, 255, 0.08);
+  pointer-events: none;
+  user-select: none;
+  animation: float 4s ease-in-out infinite;
+}
+
+.float-o {
+  position: fixed;
+  font-size: 2rem;
+  font-weight: 900;
+  color: rgba(253, 121, 168, 0.08);
+  pointer-events: none;
+  user-select: none;
+  animation: float 5s ease-in-out infinite reverse;
+}

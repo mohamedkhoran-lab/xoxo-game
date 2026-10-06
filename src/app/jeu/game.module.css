@@ -1,0 +1,388 @@
+/* ===== GAME PAGE ===== */
+.game-page {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1.5rem 1rem 2rem;
+  gap: 1.2rem;
+}
+
+/* Header */
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 520px;
+  animation: fadeInUp 0.5s ease both;
+}
+
+.game-logo {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Mode Badge */
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.6s ease 0.1s both;
+}
+
+/* Score Board */
+.score-board {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.5rem;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.5s ease 0.1s both;
+}
+
+.score-player {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.score-player-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.score-player-score {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.score-x { color: var(--accent); }
+.score-o { color: var(--pink); }
+.score-draw { color: var(--text-muted); }
+
+.score-divider {
+  font-size: 0.9rem;
+  color: var(--border);
+  font-weight: 700;
+}
+
+/* First Move Selector */
+.first-move-selector {
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.8rem 2rem;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: var(--shadow-md);
+  animation: fadeInUp 0.5s ease 0.15s both;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.first-move-label {
+  font-size: clamp(1.4rem, 4.5vw, 1.9rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  display: block;
+}
+
+.first-move-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.first-move-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem 1.5rem;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--off-white);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(1.15rem, 3.5vw, 1.35rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.first-move-btn:hover {
+  border-color: var(--accent);
+  background: rgba(108, 99, 255, 0.08);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.first-move-btn:active {
+  transform: scale(0.98);
+}
+
+/* Status Banner */
+.status-banner {
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.5rem;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.3s ease;
+  transition: all 0.3s;
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-banner.win {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(108,99,255,0.06), rgba(162,155,254,0.08));
+}
+
+.status-banner.lose {
+  border-color: var(--pink);
+  background: linear-gradient(135deg, rgba(253,121,168,0.08), rgba(232,67,147,0.08));
+}
+
+.status-banner.draw {
+  border-color: var(--green);
+  background: linear-gradient(135deg, rgba(0,206,201,0.08), rgba(85,239,196,0.08));
+}
+
+.status-text {
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+/* Board */
+.board-wrapper {
+  width: 100%;
+  max-width: 360px;
+  animation: scaleIn 0.5s ease 0.2s both;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 1.2rem;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+}
+
+/* Cell */
+.cell {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background: var(--off-white);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 85px;
+}
+
+.cell:hover:not(.filled):not(.disabled) {
+  background: rgba(108, 99, 255, 0.05);
+  border-color: var(--accent-light);
+  transform: scale(0.97);
+}
+
+.cell:active:not(.filled):not(.disabled) {
+  transform: scale(0.93);
+}
+
+.cell.filled {
+  cursor: default;
+}
+
+.cell.winning {
+  background: linear-gradient(135deg, rgba(108,99,255,0.1), rgba(162,155,254,0.15));
+  border-color: var(--accent);
+  animation: pulse 0.8s ease-in-out 3;
+}
+
+.cell.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* SVG X and O */
+.cell-svg {
+  width: 55%;
+  height: 55%;
+  animation: bounceIn 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+}
+
+.x-line {
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.x-line-1 {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.x-line-2 {
+  animation: fadeIn 0.2s ease 0.12s both;
+}
+
+.o-circle {
+  stroke: var(--pink);
+  stroke-width: 7;
+  stroke-linecap: round;
+  fill: none;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Thinking indicator */
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.thinking-dots span {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Game Actions */
+.game-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 360px;
+  animation: fadeInUp 0.5s ease 0.3s both;
+}
+
+/* Taunt Message */
+.taunt-message {
+  background: linear-gradient(135deg, rgba(108,99,255,0.08), rgba(253,121,168,0.08));
+  border: 1px solid rgba(108, 99, 255, 0.15);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.2rem;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  animation: fadeIn 0.5s ease;
+  line-height: 1.5;
+}
+
+/* Friend Mode */
+.turn-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 100px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.turn-x {
+  background: rgba(108, 99, 255, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(108, 99, 255, 0.2);
+}
+
+.turn-o {
+  background: rgba(253, 121, 168, 0.1);
+  color: var(--pink);
+  border: 1px solid rgba(253, 121, 168, 0.2);
+}
+
+/* Back link */
+.back-link {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: color 0.2s;
+}
+
+.back-link:hover { color: var(--accent); }
+
+/* Confetti */
+.confetti-piece {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confettiFall 3s ease-in forwards;
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .board-grid { gap: 8px; padding: 1rem; }
+  .cell { min-height: 70px; }
+  .score-board { padding: 0.75rem 1rem; }
+  .score-player-score { font-size: 1.6rem; }
+  .game-page { gap: 0.9rem; }
+}
