@@ -450,8 +450,8 @@ function GameContent() {
 
       {/* Actions — two buttons: Rejouer + Commencer */}
       <div className={styles["game-actions"]}>
-        {(winner || (mode === "vs-machine" && gameStarted) || (mode === "vs-ami" && board.some(Boolean))) && (
-          <div className={styles["action-buttons"]}>
+        <div className={styles["action-buttons"]}>
+          {(winner || (mode === "vs-machine" && gameStarted) || (mode === "vs-ami" && board.some(Boolean))) && (
             <button
               id="btn-rejouer"
               className={`btn-primary ${styles["action-btn"]}`}
@@ -459,15 +459,15 @@ function GameContent() {
             >
               🔄 Rejouer
             </button>
-            <button
-              id="btn-commencer"
-              className={`btn-secondary ${styles["action-btn"]}`}
-              onClick={goBackToMenu}
-            >
-              🏠 Commencer
-            </button>
-          </div>
-        )}
+          )}
+          <button
+            id="btn-commencer"
+            className={`btn-secondary ${styles["action-btn"]}`}
+            onClick={goBackToMenu}
+          >
+            🏠 Commencer
+          </button>
+        </div>
       </div>
     </main>
   );
