@@ -252,17 +252,18 @@
   opacity: 0.7;
 }
 
-/* SVG X and O */
+/* ===== SVG X and O — BOLD, CLEAR, HIGH CONTRAST ===== */
 .cell-svg {
-  width: 55%;
-  height: 55%;
+  width: 65%;
+  height: 65%;
   animation: bounceIn 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
 }
 
 .x-line {
-  stroke: var(--accent);
-  stroke-width: 7;
+  stroke: #4834d4;
+  stroke-width: 12;
   stroke-linecap: round;
+  filter: drop-shadow(0 2px 4px rgba(72, 52, 212, 0.35));
 }
 
 .x-line-1 {
@@ -274,10 +275,11 @@
 }
 
 .o-circle {
-  stroke: var(--pink);
-  stroke-width: 7;
+  stroke: #e84393;
+  stroke-width: 12;
   stroke-linecap: round;
   fill: none;
+  filter: drop-shadow(0 2px 4px rgba(232, 67, 147, 0.35));
   animation: fadeIn 0.3s ease forwards;
 }
 
@@ -303,7 +305,7 @@
 .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
 .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-/* Game Actions */
+/* ===== Game Actions — Two buttons side by side ===== */
 .game-actions {
   display: flex;
   flex-direction: column;
@@ -311,6 +313,28 @@
   width: 100%;
   max-width: 360px;
   animation: fadeInUp 0.5s ease 0.3s both;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Outfit', sans-serif;
+  white-space: nowrap;
 }
 
 /* Taunt Message */
@@ -385,4 +409,12 @@
   .score-board { padding: 0.75rem 1rem; }
   .score-player-score { font-size: 1.6rem; }
   .game-page { gap: 0.9rem; }
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .action-btn {
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+  }
 }

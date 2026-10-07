@@ -47,13 +47,13 @@ const DRAW_TAUNTS = [
 const HUMAN_START_TAUNT = "eya a bdaa a d3ifff";
 
 // ========================
-// SVG Symbols
+// SVG Symbols — Bold and clear
 // ========================
 function XSymbol() {
   return (
     <svg className={styles["cell-svg"]} viewBox="0 0 100 100" aria-label="X">
-      <line className={`${styles["x-line"]} ${styles["x-line-1"]}`} x1="18" y1="18" x2="82" y2="82" />
-      <line className={`${styles["x-line"]} ${styles["x-line-2"]}`} x1="82" y1="18" x2="18" y2="82" />
+      <line className={`${styles["x-line"]} ${styles["x-line-1"]}`} x1="20" y1="20" x2="80" y2="80" />
+      <line className={`${styles["x-line"]} ${styles["x-line-2"]}`} x1="80" y1="20" x2="20" y2="80" />
     </svg>
   );
 }
@@ -61,7 +61,7 @@ function XSymbol() {
 function OSymbol() {
   return (
     <svg className={styles["cell-svg"]} viewBox="0 0 100 100" aria-label="O">
-      <circle className={styles["o-circle"]} cx="50" cy="50" r="32" />
+      <circle className={styles["o-circle"]} cx="50" cy="50" r="30" />
     </svg>
   );
 }
@@ -292,6 +292,7 @@ function GameContent() {
     [board, winner, isThinking, gameStarted, mode, currentTurn, humanSymbol, machineSymbol, scores, saveScores, makeMachineMove, getNextTaunt]
   );
 
+  // Rejouer = restart the same game (same mode, same who-starts)
   const resetGame = useCallback(() => {
     const newBoard: Board = Array(9).fill(null);
     setBoard(newBoard);
@@ -320,6 +321,11 @@ function GameContent() {
       setCurrentTurn("X");
     }
   }, [mode, machineFirst, getNextTaunt]);
+
+  // Commencer = go back to mode selection (home page step 4)
+  const goBackToMenu = useCallback(() => {
+    router.push("/");
+  }, [router]);
 
   const statusClass =
     winner === "draw" ? styles.draw
@@ -442,17 +448,25 @@ function GameContent() {
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Actions — two buttons: Rejouer + Commencer */}
       <div className={styles["game-actions"]}>
         {(winner || (mode === "vs-machine" && gameStarted) || (mode === "vs-ami" && board.some(Boolean))) && (
-          <button
-            id="btn-rejouer"
-            className="btn-primary"
-            style={{ justifyContent: "center" }}
-            onClick={winner ? resetGame : (mode === "vs-machine" ? () => setGameStarted(false) : resetGame)}
-          >
-            3awd
-          </button>
+          <div className={styles["action-buttons"]}>
+            <button
+              id="btn-rejouer"
+              className={`btn-primary ${styles["action-btn"]}`}
+              onClick={resetGame}
+            >
+              🔄 Rejouer
+            </button>
+            <button
+              id="btn-commencer"
+              className={`btn-secondary ${styles["action-btn"]}`}
+              onClick={goBackToMenu}
+            >
+              🏠 Commencer
+            </button>
+          </div>
         )}
       </div>
     </main>
