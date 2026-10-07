@@ -25,7 +25,7 @@ export default function RootLayout({
         <div className="bg-blob bg-blob-3" />
         {children}
         <footer className="site-footer">
-          ce travail est réalisé par Mohammed el amine KHEDRAOUI 2026
+          réalisé par <span className="footer-name">amine</span> · 2026
         </footer>
       </body>
     </html>

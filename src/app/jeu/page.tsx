@@ -322,9 +322,9 @@ function GameContent() {
     }
   }, [mode, machineFirst, getNextTaunt]);
 
-  // Commencer = go back to mode selection (home page step 4)
+  // Commencer = go directly to mode selection (machine ou amis)
   const goBackToMenu = useCallback(() => {
-    router.push("/");
+    router.push("/?select=1");
   }, [router]);
 
   const statusClass =

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import styles from "./page.module.css";
 
 // Floating background decorations
@@ -14,9 +14,11 @@ const FLOATERS = [
   { char: "○", top: "55%",  left: "2%",  delay: "2.5s", size: "2.5rem" },
 ];
 
-export default function HomePage() {
+function HomeContent() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  const searchParams = useSearchParams();
+  const directSelect = searchParams.get("select") === "1";
+  const [step, setStep] = useState(directSelect ? 4 : 0);
   const [visible, setVisible] = useState(true);
 
   // Auto-progress on step 0 (opening) after 2.5s
@@ -162,5 +164,17 @@ export default function HomePage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="page-wrapper" style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh" }}>
+        <div style={{ fontSize: "3rem" }}>⏳</div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
