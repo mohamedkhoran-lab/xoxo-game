@@ -247,94 +247,9 @@
   animation: pulse 0.8s ease-in-out 3;
 }
 
-.cell.cellHint {
-  border: 2px solid #f0932b;
-  background: rgba(249, 202, 36, 0.18);
-  box-shadow: 0 0 16px rgba(249, 202, 36, 0.5);
-  animation: pulse 1.2s infinite;
-}
-
 .cell.disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-/* Hint Banner */
-.hint-banner {
-  width: 100%;
-  max-width: 520px;
-  background: white;
-  border: 1px solid #f9ca24;
-  border-left: 4px solid #f0932b;
-  border-radius: var(--radius-sm);
-  padding: 0.85rem 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  box-shadow: var(--shadow-sm);
-  animation: fadeInUp 0.35s ease both;
-}
-
-.hint-badge {
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: #d35400;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.hint-desc {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-.btn-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 1rem;
-  background: #fff8e7;
-  color: #b7791f;
-  border: 1px solid #fbd38d;
-  border-radius: 100px;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-hint:hover {
-  background: #feebc8;
-  color: #975a16;
-  border-color: #f6ad55;
-  transform: translateY(-1px);
-}
-
-.guide-header-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 100px;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.guide-header-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-1px);
 }
 
 /* ===== SVG X and O — BOLD, CLEAR, HIGH CONTRAST ===== */

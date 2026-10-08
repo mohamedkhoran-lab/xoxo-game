@@ -210,10 +210,6 @@
   background: linear-gradient(135deg, rgba(253,121,168,0.06), rgba(232,67,147,0.08));
 }
 
-.mode-card.strategy::before {
-  background: linear-gradient(135deg, rgba(249, 202, 36, 0.08), rgba(0, 206, 201, 0.08));
-}
-
 .mode-card:hover::before { opacity: 1; }
 
 .mode-card:hover {
@@ -223,7 +219,6 @@
 
 .mode-card.machine:hover { border-color: var(--accent); }
 .mode-card.friend:hover  { border-color: var(--pink); }
-.mode-card.strategy:hover { border-color: #f0932b; }
 
 .mode-card:active { transform: scale(0.98); }
 
@@ -262,36 +257,6 @@
 
 .mode-card:hover .mode-card-arrow { color: var(--accent); transform: translateX(4px); }
 .mode-card.friend:hover .mode-card-arrow { color: var(--pink); }
-.mode-card.strategy:hover .mode-card-arrow { color: #f0932b; }
-
-/* Top floating guide button */
-.top-guide-btn {
-  position: fixed;
-  top: 1.2rem;
-  right: 1.2rem;
-  z-index: 50;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: white;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  padding: 0.5rem 1rem;
-  border-radius: 100px;
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.top-guide-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
 
 /* ===== PROGRESS DOTS ===== */
 .progress-dots {
