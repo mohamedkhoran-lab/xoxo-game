@@ -9,7 +9,10 @@ import {
   getWinningLine,
   isBoardFull,
   getBestMove,
+  getStrategyHint,
+  StrategyHint,
 } from "../lib/minimax";
+import StrategyGuideModal from "../components/StrategyGuideModal";
 import styles from "./game.module.css";
 
 // ========================
@@ -123,6 +126,8 @@ function GameContent() {
   const [scores, setScores] = useState({ wins: 0, losses: 0, draws: 0 });
   const [machineFirst, setMachineFirst] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [activeHint, setActiveHint] = useState<StrategyHint | null>(null);
 
   // Anti-repeat shuffle decks and history
   const lastTauntRef = useRef<string>("");
@@ -209,6 +214,7 @@ function GameContent() {
   const startGame = useCallback((mFirst: boolean) => {
     setMachineFirst(mFirst);
     setGameStarted(true);
+    setActiveHint(null);
     const newBoard: Board = Array(9).fill(null);
     setBoard(newBoard);
     setWinner(null);
@@ -234,11 +240,24 @@ function GameContent() {
     }
   }, [getNextTaunt]);
 
+  const handleAskHint = useCallback(() => {
+    if (winner || isThinking) return;
+    const opp: Player =
+      mode === "vs-machine"
+        ? machineSymbol
+        : currentTurn === "X"
+        ? "O"
+        : "X";
+    const hint = getStrategyHint(board, currentTurn, opp);
+    setActiveHint(hint);
+  }, [board, winner, isThinking, mode, machineSymbol, currentTurn]);
+
   const handleCellClick = useCallback(
     (index: number) => {
       if (board[index] || winner || isThinking) return;
       if (mode === "vs-machine" && (!gameStarted || currentTurn !== humanSymbol)) return;
 
+      setActiveHint(null);
       const newBoard = [...board];
       newBoard[index] = currentTurn;
 
@@ -294,6 +313,7 @@ function GameContent() {
 
   // Rejouer = restart the same game (same mode, same who-starts)
   const resetGame = useCallback(() => {
+    setActiveHint(null);
     const newBoard: Board = Array(9).fill(null);
     setBoard(newBoard);
     setWinner(null);
@@ -344,8 +364,18 @@ function GameContent() {
         <div className={styles["game-logo"]}>
           <span className="gradient-text">XO</span>
         </div>
-        <div className={styles["mode-badge"]}>
-          {mode === "vs-machine" ? "vs Machine" : "vs Sahbi"}
+        <div className={styles["header-actions"]}>
+          <button
+            id="btn-header-guide"
+            className={styles["guide-header-btn"]}
+            onClick={() => setShowGuide(true)}
+            title="Ouvrir le guide stratégique Never Lose"
+          >
+            📖 Guide
+          </button>
+          <div className={styles["mode-badge"]}>
+            {mode === "vs-machine" ? "vs Machine" : "vs Sahbi"}
+          </div>
         </div>
       </div>
 
@@ -422,6 +452,7 @@ function GameContent() {
           {board.map((cell, i) => {
             const isWinning = winLine?.includes(i) ?? false;
             const isFilled = !!cell;
+            const isHint = activeHint?.bestMove === i;
             const isDisabled =
               isFilled || !!winner || isThinking ||
               (mode === "vs-machine" && (!gameStarted || currentTurn !== humanSymbol));
@@ -436,6 +467,7 @@ function GameContent() {
                   styles.cell,
                   isFilled ? styles.filled : "",
                   isWinning ? styles.winning : "",
+                  isHint ? styles.cellHint : "",
                   isDisabled ? styles.disabled : "",
                 ].join(" ")}
                 onClick={() => handleCellClick(i)}
@@ -448,9 +480,35 @@ function GameContent() {
         </div>
       </div>
 
-      {/* Actions — two buttons: Rejouer + Commencer */}
+      {/* Hint banner if active */}
+      {activeHint && (
+        <div className={styles["hint-banner"]}>
+          <div className={styles["hint-badge"]}>
+            <span>💡</span>
+            <span>{activeHint.ruleTitle}</span>
+          </div>
+          <p className={styles["hint-desc"]}>{activeHint.ruleDescription}</p>
+        </div>
+      )}
+
+      {/* Actions */}
       <div className={styles["game-actions"]}>
         <div className={styles["action-buttons"]}>
+          {/* Hint button */}
+          {!winner && !isThinking && (
+            (mode === "vs-machine" && gameStarted && currentTurn === humanSymbol) ||
+            (mode === "vs-ami" && !isBoardFull(board))
+          ) && (
+            <button
+              id="btn-get-hint"
+              className={styles["btn-hint"]}
+              onClick={handleAskHint}
+              title="Obtenir un conseil stratégique selon la règle optimale"
+            >
+              💡 Astuce Tactique
+            </button>
+          )}
+
           {(winner || (mode === "vs-machine" && gameStarted) || (mode === "vs-ami" && board.some(Boolean))) && (
             <button
               id="btn-rejouer"
@@ -469,6 +527,12 @@ function GameContent() {
           </button>
         </div>
       </div>
+
+      {/* Strategy Guide Modal */}
+      <StrategyGuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
     </main>
   );
 }

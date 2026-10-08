@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
+import StrategyGuideModal from "./components/StrategyGuideModal";
 import styles from "./page.module.css";
 
 // Floating background decorations
@@ -20,6 +21,7 @@ function HomeContent() {
   const directSelect = searchParams.get("select") === "1";
   const [step, setStep] = useState(directSelect ? 4 : 0);
   const [visible, setVisible] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Auto-progress on step 0 (opening) after 2.5s
   useEffect(() => {
@@ -43,6 +45,16 @@ function HomeContent() {
 
   return (
     <main className={styles["intro-wrapper"]}>
+      {/* Floating Top Guide Button */}
+      <button
+        id="btn-top-guide"
+        className={styles["top-guide-btn"]}
+        onClick={() => setShowGuide(true)}
+        aria-label="Ouvrir le guide stratégique"
+      >
+        💡 Guide Stratégie
+      </button>
+
       {/* Floating decorations */}
       {FLOATERS.map((f, i) => (
         <span
@@ -160,9 +172,32 @@ function HomeContent() {
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
+
+            {/* Strategy Guide (Never Lose) */}
+            <button
+              id="btn-open-strategy"
+              className={`${styles["mode-card"]} ${styles.strategy}`}
+              onClick={() => setShowGuide(true)}
+            >
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>
+                  📖 Kifech matakhserch ga3 (Guide Stratégique)
+                </span>
+                <span className={styles["mode-card-sub"]}>
+                  Les 8 règles mathématiques pour ne JAMAIS perdre à XO
+                </span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
           </div>
         </div>
       )}
+
+      {/* Strategy Guide Modal */}
+      <StrategyGuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
     </main>
   );
 }
