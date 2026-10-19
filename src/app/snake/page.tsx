@@ -15,7 +15,7 @@ interface Point {
 const GRID_SIZE = 20; // 20x20 cells
 const CANVAS_SIZE = 400; // 400x400 px (20px per cell)
 const CELL_SIZE = CANVAS_SIZE / GRID_SIZE;
-const TICK_SPEED = 110; // ms per tick
+const TICK_SPEED = 137; // ms per tick (20% slower)
 
 const DIRS = {
   UP: { x: 0, y: -1 },
@@ -438,41 +438,47 @@ function SnakeContent() {
         )}
       </div>
 
-      {/* On-Screen D-Pad Controls (4 flèches directes comme demandé) */}
+      {/* On-Screen D-Pad Controls — Croix directionnelle correcte */}
       <div className={styles["controls-wrapper"]} aria-label="Contrôles Snake">
-        <button
-          id="btn-dpad-up"
-          className={styles["dpad-btn"]}
-          onClick={() => changeDirection(DIRS.UP)}
-          aria-label="Haut"
-        >
-          ▲
-        </button>
-        <div className={styles["dpad-row"]}>
-          <button
-            id="btn-dpad-left"
-            className={styles["dpad-btn"]}
-            onClick={() => changeDirection(DIRS.LEFT)}
-            aria-label="Gauche"
-          >
-            ◄
-          </button>
-          <button
-            id="btn-dpad-down"
-            className={styles["dpad-btn"]}
-            onClick={() => changeDirection(DIRS.DOWN)}
-            aria-label="Bas"
-          >
-            ▼
-          </button>
-          <button
-            id="btn-dpad-right"
-            className={styles["dpad-btn"]}
-            onClick={() => changeDirection(DIRS.RIGHT)}
-            aria-label="Droite"
-          >
-            ►
-          </button>
+        <div className={styles["dpad"]}>
+          {/* Row 1 : haut */}
+          <div className={styles["dpad-row"]}>
+            <div className={styles["dpad-empty"]} />
+            <button
+              id="btn-dpad-up"
+              className={styles["dpad-btn"]}
+              onClick={() => changeDirection(DIRS.UP)}
+              aria-label="Haut"
+            >▲</button>
+            <div className={styles["dpad-empty"]} />
+          </div>
+          {/* Row 2 : gauche / centre / droite */}
+          <div className={styles["dpad-row"]}>
+            <button
+              id="btn-dpad-left"
+              className={styles["dpad-btn"]}
+              onClick={() => changeDirection(DIRS.LEFT)}
+              aria-label="Gauche"
+            >◄</button>
+            <div className={styles["dpad-center"]} />
+            <button
+              id="btn-dpad-right"
+              className={styles["dpad-btn"]}
+              onClick={() => changeDirection(DIRS.RIGHT)}
+              aria-label="Droite"
+            >►</button>
+          </div>
+          {/* Row 3 : bas */}
+          <div className={styles["dpad-row"]}>
+            <div className={styles["dpad-empty"]} />
+            <button
+              id="btn-dpad-down"
+              className={styles["dpad-btn"]}
+              onClick={() => changeDirection(DIRS.DOWN)}
+              aria-label="Bas"
+            >▼</button>
+            <div className={styles["dpad-empty"]} />
+          </div>
         </div>
       </div>
 

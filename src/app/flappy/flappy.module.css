@@ -1,0 +1,140 @@
+/* ===== FLAPPY BIRD GAME PAGE ===== */
+.flappy-page {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1.2rem 1rem 2.5rem;
+  gap: 1rem;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.flappy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  animation: fadeInUp 0.4s ease both;
+}
+
+.flappy-logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; }
+
+.badge-flappy {
+  display: inline-flex;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fdcb6e;
+  box-shadow: var(--shadow-sm);
+}
+
+.back-link {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--accent); }
+
+/* Scoreboard */
+.scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.4rem;
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.4s ease 0.1s both;
+}
+
+.score-item { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.score-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.score-value { font-size: 1.6rem; font-weight: 900; color: var(--text-primary); line-height: 1; }
+.score-value.best { background: linear-gradient(135deg,#f9ca24,#f0932b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.score-divider { font-size: 1.2rem; color: var(--border); }
+
+/* Canvas Wrapper */
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(36,32,56,0.22), 0 0 0 3px #1a2744;
+  animation: scaleIn 0.4s ease 0.15s both;
+  cursor: pointer;
+}
+
+.canvas { width: 100%; display: block; }
+
+/* Overlay */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15,15,26,0.82);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+  z-index: 10;
+}
+
+.overlay-title { font-size: clamp(1.6rem,6vw,2.2rem); font-weight: 900; letter-spacing: -0.5px; color: white; }
+.overlay-score { font-size: 1.1rem; font-weight: 700; color: rgba(255,255,255,0.7); }
+.overlay-score strong { color: #fdcb6e; }
+
+/* Actions */
+.flappy-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 360px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: 'Outfit', sans-serif;
+  border: none;
+  width: 100%;
+}
+
+.btn-flap {
+  background: linear-gradient(135deg,#fdcb6e,#e17055);
+  color: white;
+  box-shadow: 0 6px 18px rgba(253,203,110,0.4);
+}
+.btn-flap:hover { transform: translateY(-2px); }
+
+.hint { font-size:0.78rem; color:var(--text-muted); text-align:center; font-weight:500; }
+
+@media (max-width: 480px) { .canvas-wrapper { max-width: 320px; } }

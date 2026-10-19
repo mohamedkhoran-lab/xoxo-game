@@ -1,0 +1,188 @@
+/* ===== SIMON SAYS GAME PAGE ===== */
+.simon-page {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1.2rem 1rem 2.5rem;
+  gap: 1.2rem;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.simon-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  animation: fadeInUp 0.4s ease both;
+}
+
+.simon-logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; }
+
+.badge-simon {
+  display: inline-flex;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #e17055;
+  box-shadow: var(--shadow-sm);
+}
+
+.back-link {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--accent); }
+
+/* Level bar */
+.level-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.4rem;
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.4s ease 0.1s both;
+}
+
+.level-item { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.level-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.level-value { font-size: 1.6rem; font-weight: 900; color: var(--text-primary); line-height: 1; }
+.level-value.best { background: linear-gradient(135deg,#f9ca24,#f0932b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.level-divider { font-size: 1.2rem; color: var(--border); }
+
+/* Status */
+.status-banner {
+  width: 100%;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.2rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s;
+}
+
+.status-banner.showing { color: #6c63ff; border-color: #a29bfe; }
+.status-banner.input   { color: #00cec9; border-color: #00cec9; }
+.status-banner.error   { background: linear-gradient(135deg,#ff6b6b,#e17055); color:white; border-color:transparent; }
+.status-banner.win     { background: linear-gradient(135deg,#55efc4,#00cec9); color:white; border-color:transparent; }
+
+/* Simon Board */
+.simon-board {
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  animation: scaleIn 0.4s ease 0.15s both;
+}
+
+.simon-btn {
+  border-radius: 18px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  opacity: 0.75;
+  position: relative;
+  overflow: hidden;
+}
+
+.simon-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0);
+  transition: background 0.12s;
+}
+
+.simon-btn.lit {
+  opacity: 1;
+  transform: scale(1.04);
+  box-shadow: 0 0 32px 8px var(--glow);
+}
+
+.simon-btn:active:not(:disabled) {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
+.simon-btn:disabled { cursor: not-allowed; }
+
+.btn-green  { background: #00b894; --glow: rgba(0,184,148,0.6); }
+.btn-red    { background: #d63031; --glow: rgba(214,48,49,0.6); }
+.btn-yellow { background: #fdcb6e; --glow: rgba(253,203,110,0.7); }
+.btn-blue   { background: #0984e3; --glow: rgba(9,132,227,0.6); }
+
+/* Start button */
+.start-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Actions */
+.simon-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 340px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: 'Outfit', sans-serif;
+  border: none;
+  width: 100%;
+}
+
+.btn-start {
+  background: linear-gradient(135deg,#e17055,#d63031);
+  color: white;
+  box-shadow: 0 6px 18px rgba(214,48,49,0.35);
+}
+.btn-start:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(214,48,49,0.45); }
+
+@media (max-width: 480px) {
+  .simon-board { max-width: 300px; gap: 10px; }
+}

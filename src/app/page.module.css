@@ -87,45 +87,39 @@
   letter-spacing: -1px;
 }
 
-.mode-card.game-xoxo:hover .game-card-icon {
-  border-color: var(--accent);
-  background: rgba(108, 99, 255, 0.08);
-}
+/* XOXO */
+.mode-card.game-xoxo:hover .game-card-icon { border-color: var(--accent); background: rgba(108, 99, 255, 0.08); }
+.mode-card.game-xoxo:hover { border-color: var(--accent); }
+/* DAMA */
+.mode-card.game-dama:hover .game-card-icon { border-color: var(--pink); background: rgba(253, 121, 168, 0.08); }
+.mode-card.game-dama:hover { border-color: var(--pink); }
+/* CHESS */
+.mode-card.game-chess:hover .game-card-icon { border-color: #00cec9; background: rgba(0, 206, 201, 0.08); }
+.mode-card.game-chess:hover { border-color: #00cec9; }
+/* SNAKE */
+.mode-card.game-snake:hover .game-card-icon { border-color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+.mode-card.game-snake:hover { border-color: #2ecc71; }
+/* 2048 */
+.mode-card.game-2048:hover .game-card-icon { border-color: #f0932b; background: rgba(240, 147, 43, 0.1); }
+.mode-card.game-2048:hover { border-color: #f0932b; }
+/* MEMORY */
+.mode-card.game-memory:hover .game-card-icon { border-color: #a29bfe; background: rgba(162, 155, 254, 0.1); }
+.mode-card.game-memory:hover { border-color: #a29bfe; }
+/* SIMON */
+.mode-card.game-simon:hover .game-card-icon { border-color: #e17055; background: rgba(225, 112, 85, 0.1); }
+.mode-card.game-simon:hover { border-color: #e17055; }
+/* FLAPPY */
+.mode-card.game-flappy:hover .game-card-icon { border-color: #fdcb6e; background: rgba(253, 203, 110, 0.1); }
+.mode-card.game-flappy:hover { border-color: #fdcb6e; }
+/* PONG */
+.mode-card.game-pong:hover .game-card-icon { border-color: #74b9ff; background: rgba(116, 185, 255, 0.1); }
+.mode-card.game-pong:hover { border-color: #74b9ff; }
+/* BREAKOUT */
+.mode-card.game-breakout:hover .game-card-icon { border-color: #55efc4; background: rgba(85, 239, 196, 0.1); }
+.mode-card.game-breakout:hover { border-color: #55efc4; }
 
-.mode-card.game-xoxo:hover {
-  border-color: var(--accent);
-}
+.dama-mini-tag { font-size: 1.5rem; }
 
-.mode-card.game-dama:hover .game-card-icon {
-  border-color: var(--pink);
-  background: rgba(253, 121, 168, 0.08);
-}
-
-.mode-card.game-dama:hover {
-  border-color: var(--pink);
-}
-
-.mode-card.game-chess:hover .game-card-icon {
-  border-color: #00cec9;
-  background: rgba(0, 206, 201, 0.08);
-}
-
-.mode-card.game-chess:hover {
-  border-color: #00cec9;
-}
-
-.mode-card.game-snake:hover .game-card-icon {
-  border-color: #2ecc71;
-  background: rgba(46, 204, 113, 0.1);
-}
-
-.mode-card.game-snake:hover {
-  border-color: #2ecc71;
-}
-
-.dama-mini-tag {
-  font-size: 1.5rem;
-}
 
 /* Modal for Dama vs Amine coming soon */
 .modal-overlay {
@@ -317,6 +311,15 @@
   letter-spacing: -0.5px;
 }
 
+/* 2-column grid for game selection */
+.games-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+/* Single-column list for mode selection */
 .mode-cards {
   display: flex;
   flex-direction: column;
