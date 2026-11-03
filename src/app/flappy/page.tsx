@@ -9,10 +9,10 @@ import styles from "./flappy.module.css";
 // ========================
 const W = 360, H = 540;
 const BIRD_X = 80, BIRD_R = 18;
-// Adjusted for mobile touch response (~25% slower pipes, gentler gravity, wider gap)
-const GRAVITY = 0.38, FLAP_FORCE = -7.2;
-const PIPE_W = 52, PIPE_GAP = 165, PIPE_SPEED = 2.1;
-const PIPE_INTERVAL = 1800; // ms
+// Snappy, 60fps-tuned responsive physics
+const GRAVITY = 0.44, FLAP_FORCE = -7.8;
+const PIPE_W = 52, PIPE_GAP = 160, PIPE_SPEED = 2.7;
+const PIPE_INTERVAL = 1500; // ms
 
 interface Pipe { x: number; topH: number; scored: boolean; }
 
@@ -80,9 +80,6 @@ function FlappyContent() {
 
     // Pipes
     pipes.current.forEach(pipe => {
-      // Shadow
-      ctx.shadowColor = "rgba(0,0,0,0.3)";
-      ctx.shadowBlur = 8;
       // Top pipe
       const topGrad = ctx.createLinearGradient(pipe.x, 0, pipe.x + PIPE_W, 0);
       topGrad.addColorStop(0, "#2ecc71");
@@ -96,7 +93,6 @@ function FlappyContent() {
       ctx.fillRect(pipe.x, botY, PIPE_W, H - botY);
       // Bottom cap
       ctx.fillRect(pipe.x - 4, botY, PIPE_W + 8, 20);
-      ctx.shadowBlur = 0;
     });
 
     // Bird
@@ -106,8 +102,6 @@ function FlappyContent() {
     ctx.translate(BIRD_X, by);
     ctx.rotate(angle);
     // Body
-    ctx.shadowColor = "#fdcb6e";
-    ctx.shadowBlur = 14;
     ctx.fillStyle = "#fdcb6e";
     ctx.beginPath();
     ctx.ellipse(0, 0, BIRD_R, BIRD_R - 3, 0, 0, Math.PI * 2);
@@ -118,7 +112,6 @@ function FlappyContent() {
     ctx.ellipse(-6, 3, 10, 6, -0.4, 0, Math.PI * 2);
     ctx.fill();
     // Eye
-    ctx.shadowBlur = 0;
     ctx.fillStyle = "white";
     ctx.beginPath();
     ctx.arc(8, -4, 5, 0, Math.PI * 2);
