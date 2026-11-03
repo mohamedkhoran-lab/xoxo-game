@@ -20,11 +20,12 @@ function HomeContent() {
   const directSelect = searchParams.get("select");
 
   const initialStep =
-    directSelect === "1"    ? 1 :
-    directSelect === "mode" ? 4 :
-    directSelect === "dama" ? 5 :
-    directSelect === "chess"? 6 :
-    directSelect === "pong" ? 7 :
+    directSelect === "1"         ? 1 :
+    directSelect === "mode"      ? 4 :
+    directSelect === "dama"      ? 5 :
+    directSelect === "chess"     ? 6 :
+    directSelect === "pong"      ? 7 :
+    directSelect === "watersort" ? 8 :
     0;
 
   const [step, setStep] = useState(initialStep);
@@ -35,7 +36,7 @@ function HomeContent() {
     setTimeout(() => {
       setStep(next);
       setVisible(true);
-    }, 350);
+    }, 240);
   };
 
   const goToGame = (route: string) => {
@@ -44,11 +45,16 @@ function HomeContent() {
 
   return (
     <main className={styles["intro-wrapper"]}>
+      {/* Vitality animated ambient lights for background continuity */}
+      <div className={styles.vitalityOrb1} />
+      <div className={styles.vitalityOrb2} />
+      <div className={styles.vitalityOrb3} />
+
       {/* Floating decorations */}
       {FLOATERS.map((f, i) => (
         <span
           key={i}
-          className={i % 2 === 0 ? styles["float-x"] : styles["float-o"]}
+          className={`${i % 2 === 0 ? styles["float-x"] : styles["float-o"]} ${styles[`floater-${i}`]}`}
           style={{ top: f.top, left: f.left, animationDelay: f.delay, fontSize: f.size }}
         >
           {f.char}
@@ -57,36 +63,34 @@ function HomeContent() {
 
       {/* Progress dots */}
       <div className={styles["progress-dots"]}>
-        {[0, 1, 2, 3, 4].map((i) => {
-          const isActive = [5,6,7].includes(step) ? i === 1 : step === i;
+        {[0, 1, 2, 4].map((stepIndex) => {
+          const isActive = [5, 6, 7, 8].includes(step) ? stepIndex === 1 : step === stepIndex;
           return (
-            <div key={i} className={`${styles.dot} ${isActive ? styles.active : ""}`} />
+            <div key={stepIndex} className={`${styles.dot} ${isActive ? styles.active : ""}`} />
           );
         })}
       </div>
 
-      {/* ====== STEP 0 — HEEY HEEY FEL SITE TA3I ====== */}
-      {step === 0 && visible && (
-        <div className={styles.step} key="step0">
-          <div className={styles["welcome-badge"]}>
-            <span>👋 Marhba bik</span>
-          </div>
+      {/* ====== STEP 0 ====== */}
+      {step === 0 && (
+        <div className={`${styles.step} ${styles.heroStep} ${!visible ? styles.stepOut : styles.stepIn}`} key="step0">
+          <div className={styles.heroHalo} />
           <h1 className={styles["welcome-title"]}>
-            heey heeey fel site ta3i
+            rak baghi tal3ab chwiya ??
           </h1>
           <button
             id="btn-commencer"
             className={styles["btn-commencer-bright"]}
             onClick={() => goToStep(1)}
           >
-            commençer
+            oui nal3eeb , eya rohhh!!!
           </button>
         </div>
       )}
 
       {/* ====== STEP 1 — CHARAK BAGHI TEL3EB ?? ====== */}
-      {step === 1 && visible && (
-        <div className={styles.step} key="step1">
+      {step === 1 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step1">
           <h1 className={styles["mode-title"]}>
             charak baghi tel3eb ??
           </h1>
@@ -192,35 +196,55 @@ function HomeContent() {
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
 
+            {/* WOODOKU */}
+            <button id="btn-game-woodoku" className={`${styles["mode-card"]} ${styles["game-woodoku"]}`} onClick={() => router.push("/woodoku")}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🪵</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Woodoku</span>
+                <span className={styles["mode-card-sub"]}>jeu t relaxer chwiya bih</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
+            {/* BUBBLE WRAP */}
+            <button id="btn-game-bubble" className={`${styles["mode-card"]} ${styles["game-bubble"]}`} onClick={() => router.push("/bubble-wrap")}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🫧</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Bubble Wrap</span>
+                <span className={styles["mode-card-sub"]}>el ra7aaaa w tagla3 stresse</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
+            {/* WATER SORT */}
+            <button id="btn-game-watersort" className={`${styles["mode-card"]} ${styles["game-watersort"]}`} onClick={() => goToStep(8)}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🧪</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Water Sort</span>
+                <span className={styles["mode-card-sub"]}>jeu prefere ta3i heda</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
           </div>
         </div>
       )}
 
       {/* ====== STEP 2 ====== */}
-      {step === 2 && visible && (
-        <div className={styles.step} key="step2">
+      {step === 2 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step2">
           <div className={styles["step2-card"]}>
             <p className={styles["step2-text"]}>bsh m3a amine baynaa beli takhsser</p>
           </div>
-          <button id="btn-la-narbeh" className={`${styles["btn-wow"]} ${styles["btn-pink"]}`} onClick={() => goToStep(3)}>
+          <button id="btn-la-narbeh" className={`${styles["btn-wow"]} ${styles["btn-pink"]}`} onClick={() => goToStep(4)}>
             la narbeh ana
           </button>
         </div>
       )}
 
-      {/* ====== STEP 3 ====== */}
-      {step === 3 && visible && (
-        <div className={styles.step} key="step3">
-          <h2 className={styles["step3-text"]}>cheel samet</h2>
-          <button id="btn-enter-game" className={styles["btn-wow"]} onClick={() => goToStep(4)}>
-            w ana samet 3lik roh
-          </button>
-        </div>
-      )}
-
       {/* ====== STEP 4 — XOXO MODE SELECTION ====== */}
-      {step === 4 && visible && (
-        <div className={styles.step} key="step4">
+      {step === 4 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step4">
           <h2 className={styles["mode-title"]}>khtar kifech tal3aab</h2>
           <div className={styles["mode-cards"]}>
             <button id="btn-vs-machine" className={`${styles["mode-card"]} ${styles.machine}`} onClick={() => goToGame("/jeu?mode=vs-machine")}>
@@ -241,8 +265,8 @@ function HomeContent() {
       )}
 
       {/* ====== STEP 5 — DAMA MODE SELECTION ====== */}
-      {step === 5 && visible && (
-        <div className={styles.step} key="step5">
+      {step === 5 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step5">
           <h2 className={styles["mode-title"]}>khtar kifech tal3aab Dama</h2>
           <div className={styles["mode-cards"]}>
             <button id="btn-dama-vs-amine" className={`${styles["mode-card"]} ${styles.machine}`} onClick={() => router.push("/dama?mode=vs-machine")}>
@@ -263,8 +287,8 @@ function HomeContent() {
       )}
 
       {/* ====== STEP 6 — CHESS MODE SELECTION ====== */}
-      {step === 6 && visible && (
-        <div className={styles.step} key="step6">
+      {step === 6 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step6">
           <h2 className={styles["mode-title"]}>khtar kifech tal3aab Chess</h2>
           <div className={styles["mode-cards"]}>
             <button id="btn-chess-vs-amine" className={`${styles["mode-card"]} ${styles.machine}`} onClick={() => router.push("/chess?mode=vs-machine")}>
@@ -285,8 +309,8 @@ function HomeContent() {
       )}
 
       {/* ====== STEP 7 — PONG MODE SELECTION ====== */}
-      {step === 7 && visible && (
-        <div className={styles.step} key="step7">
+      {step === 7 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step7">
           <h2 className={styles["mode-title"]}>khtar kifech tal3aab Pong</h2>
           <div className={styles["mode-cards"]}>
             <button id="btn-pong-vs-amine" className={`${styles["mode-card"]} ${styles.machine}`} onClick={() => router.push("/pong?mode=vs-machine")}>
@@ -303,6 +327,50 @@ function HomeContent() {
             </button>
           </div>
           <button className={styles["btn-back-step"]} onClick={() => goToStep(1)} id="btn-change-game-pong">← baghi nbadel jeu</button>
+        </div>
+      )}
+
+      {/* ====== STEP 8 — WATER SORT DIFFICULTY SELECTION ====== */}
+      {step === 8 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step8">
+          <h2 className={styles["mode-title"]}>khtar le niveau</h2>
+          <div className={styles["mode-cards"]}>
+            <button
+              id="btn-watersort-easy"
+              className={`${styles["mode-card"]} ${styles.friend}`}
+              onClick={() => router.push("/water-sort?diff=facile")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🟢</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau sahel w trelakser</span>
+                <span className={styles["mode-card-sub"]}>10 tubes — relax w sahla chwiya</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+            <button
+              id="btn-watersort-hard"
+              className={`${styles["mode-card"]} ${styles.machine}`}
+              onClick={() => router.push("/water-sort?diff=difficile")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🔥</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau dificille w salek rohek</span>
+                <span className={styles["mode-card-sub"]}>14 tubes — pour les vrais pros</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+          </div>
+          <button
+            className={styles["btn-back-step"]}
+            onClick={() => goToStep(1)}
+            id="btn-change-game-watersort"
+          >
+            ← baghi nbadel jeu
+          </button>
         </div>
       )}
 

@@ -9,9 +9,10 @@ import styles from "./flappy.module.css";
 // ========================
 const W = 360, H = 540;
 const BIRD_X = 80, BIRD_R = 18;
-const GRAVITY = 0.45, FLAP_FORCE = -8;
-const PIPE_W = 52, PIPE_GAP = 150, PIPE_SPEED = 2.8;
-const PIPE_INTERVAL = 1600; // ms
+// Adjusted for mobile touch response (~25% slower pipes, gentler gravity, wider gap)
+const GRAVITY = 0.38, FLAP_FORCE = -7.2;
+const PIPE_W = 52, PIPE_GAP = 165, PIPE_SPEED = 2.1;
+const PIPE_INTERVAL = 1800; // ms
 
 interface Pipe { x: number; topH: number; scored: boolean; }
 
@@ -275,7 +276,15 @@ function FlappyContent() {
       </div>
 
       {/* Canvas */}
-      <div className={styles["canvas-wrapper"]} onClick={() => displayState === "gameover" ? startGame() : flap()}>
+      <div
+        className={styles["canvas-wrapper"]}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          if (displayState === "gameover") startGame();
+          else flap();
+        }}
+        onClick={() => (displayState === "gameover" ? startGame() : flap())}
+      >
         <canvas ref={canvasRef} width={W} height={H} className={styles.canvas} />
         {displayState === "ready" && (
           <div className={styles.overlay}>

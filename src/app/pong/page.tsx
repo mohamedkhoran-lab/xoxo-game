@@ -52,8 +52,8 @@ function PongContent() {
   const p2Y = useRef((H - PADDLE_H) / 2);
   const ballX = useRef(W / 2);
   const ballY = useRef(H / 2);
-  const ballDx = useRef(4.5);
-  const ballDy = useRef(2.5);
+  const ballDx = useRef(5.6);
+  const ballDy = useRef(3.1);
   const keysPressed = useRef<Record<string, boolean>>({});
 
   const p1ScoreRef = useRef(0);
@@ -62,7 +62,7 @@ function PongContent() {
   const resetBall = (towardsPlayer = true) => {
     ballX.current = W / 2;
     ballY.current = H / 2;
-    const speed = 4.5;
+    const speed = 5.6; // +25% speed (was 4.5)
     const angle = (Math.random() * 0.8 - 0.4) * Math.PI; // between -36° and +36°
     const dir = towardsPlayer ? -1 : 1;
     ballDx.current = dir * speed * Math.cos(angle);
@@ -111,13 +111,13 @@ function PongContent() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const handlePointerMove = (e: PointerEvent) => {
+    const updatePaddlePos = (clientX: number, clientY: number) => {
       if (gameState !== "playing") return;
       const rect = canvas.getBoundingClientRect();
       const scaleY = H / rect.height;
       const scaleX = W / rect.width;
-      const pointerX = (e.clientX - rect.left) * scaleX;
-      const pointerY = (e.clientY - rect.top) * scaleY;
+      const pointerX = (clientX - rect.left) * scaleX;
+      const pointerY = (clientY - rect.top) * scaleY;
 
       if (mode === "vs-machine") {
         // Player controls left paddle
@@ -132,11 +132,49 @@ function PongContent() {
       }
     };
 
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.cancelable) e.preventDefault();
+      updatePaddlePos(e.clientX, e.clientY);
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.cancelable) e.preventDefault();
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {}
+      updatePaddlePos(e.clientX, e.clientY);
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      try {
+        if (canvas.hasPointerCapture(e.pointerId)) {
+          canvas.releasePointerCapture(e.pointerId);
+        }
+      } catch {}
+    };
+
+    // Dedicated touch handlers with passive: false to prevent mobile browser viewport scrolling
+    const handleTouch = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      for (let i = 0; i < e.touches.length; i++) {
+        updatePaddlePos(e.touches[i].clientX, e.touches[i].clientY);
+      }
+    };
+
     canvas.addEventListener("pointermove", handlePointerMove);
-    canvas.addEventListener("pointerdown", handlePointerMove);
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointerup", handlePointerUp);
+    canvas.addEventListener("pointercancel", handlePointerUp);
+    canvas.addEventListener("touchstart", handleTouch, { passive: false });
+    canvas.addEventListener("touchmove", handleTouch, { passive: false });
+
     return () => {
       canvas.removeEventListener("pointermove", handlePointerMove);
-      canvas.removeEventListener("pointerdown", handlePointerMove);
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointerup", handlePointerUp);
+      canvas.removeEventListener("pointercancel", handlePointerUp);
+      canvas.removeEventListener("touchstart", handleTouch);
+      canvas.removeEventListener("touchmove", handleTouch);
     };
   }, [gameState, mode]);
 
@@ -147,7 +185,7 @@ function PongContent() {
     }
 
     // 1. Move Player 1 (W / S or Z / S or ArrowUp / ArrowDown in single player)
-    const speed = 5.5;
+    const speed = 6.8;
     const k = keysPressed.current;
     if (k["w"] || k["z"] || (mode === "vs-machine" && k["arrowup"])) {
       p1Y.current = Math.max(0, p1Y.current - speed);
@@ -170,7 +208,7 @@ function PongContent() {
       if (ballDx.current > 0) {
         const targetY = ballY.current - PADDLE_H / 2;
         const aiDiff = targetY - p2Y.current;
-        const aiSpeed = 7.5; // Very fast and flawless tracking
+        const aiSpeed = 9.4; // Scaled for +25% ball speed
         if (Math.abs(aiDiff) > aiSpeed) {
           p2Y.current += Math.sign(aiDiff) * aiSpeed;
         } else {
@@ -180,7 +218,7 @@ function PongContent() {
         // When ball goes left, center smoothly to wait for the return
         const centerY = (H - PADDLE_H) / 2;
         const diff = centerY - p2Y.current;
-        p2Y.current += Math.sign(diff) * Math.min(Math.abs(diff), 2.5);
+        p2Y.current += Math.sign(diff) * Math.min(Math.abs(diff), 3.0);
       }
       p2Y.current = Math.max(0, Math.min(H - PADDLE_H, p2Y.current));
     }
@@ -212,7 +250,7 @@ function PongContent() {
     ) {
       ballX.current = p1X + PADDLE_W + BALL_R;
       const offset = (ballY.current - (p1Y.current + PADDLE_H / 2)) / (PADDLE_H / 2);
-      const speed = Math.min(8.5, Math.hypot(ballDx.current, ballDy.current) * 1.04);
+      const speed = Math.min(10.6, Math.hypot(ballDx.current, ballDy.current) * 1.04);
       const maxAngle = Math.PI * 0.38; // ~68 degrees
       ballDx.current = speed * Math.cos(offset * maxAngle);
       ballDy.current = speed * Math.sin(offset * maxAngle);
@@ -230,7 +268,7 @@ function PongContent() {
     ) {
       ballX.current = p2X - BALL_R;
       const offset = (ballY.current - (p2Y.current + PADDLE_H / 2)) / (PADDLE_H / 2);
-      const speed = Math.min(9.0, Math.hypot(ballDx.current, ballDy.current) * 1.04);
+      const speed = Math.min(11.2, Math.hypot(ballDx.current, ballDy.current) * 1.04);
       const maxAngle = Math.PI * 0.38;
       ballDx.current = -speed * Math.cos(offset * maxAngle);
       ballDy.current = speed * Math.sin(offset * maxAngle);

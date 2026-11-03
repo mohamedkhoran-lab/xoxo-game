@@ -78,9 +78,19 @@
   box-shadow: 0 16px 48px rgba(36,32,56,0.22), 0 0 0 3px #1a2744;
   animation: scaleIn 0.4s ease 0.15s both;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.canvas { width: 100%; display: block; }
+.canvas {
+  width: 100%;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
 
 /* Overlay */
 .overlay {

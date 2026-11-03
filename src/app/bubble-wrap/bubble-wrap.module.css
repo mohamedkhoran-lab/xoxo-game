@@ -1,0 +1,290 @@
+/* ===== BUBBLE WRAP / POP-IT ANTISTRESS ===== */
+.bubble-page {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1rem 0.8rem 2.5rem;
+  gap: 0.9rem;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  animation: fadeInUp 0.4s ease both;
+}
+
+.bubble-logo {
+  font-size: 1.45rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.badge-bubble {
+  display: inline-flex;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ec4899;
+  box-shadow: var(--shadow-sm);
+}
+
+.back-link {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+.back-link:hover { color: var(--accent); }
+
+/* Scoreboard */
+.scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  padding: 0.75rem 1.2rem;
+  width: 100%;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  animation: fadeInUp 0.4s ease 0.1s both;
+}
+
+.score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.score-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.score-value {
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.score-value.popped {
+  background: linear-gradient(135deg, #ec4899, #f43f5e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.score-divider {
+  font-size: 1.2rem;
+  color: #cbd5e1;
+}
+
+/* Bubble Wrap Sheet */
+.sheet-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 28px;
+  padding: 1.1rem;
+  box-shadow: 0 16px 40px rgba(236, 72, 153, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.6);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  animation: scaleIn 0.35s ease 0.12s both;
+  touch-action: none; /* Prevents scroll when dragging across bubbles */
+}
+
+/* Individual Bubble */
+.bubble {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Unpopped 3D Glass Bubble */
+.bubble-unpopped {
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.6) 20%, currentColor 65%, rgba(0, 0, 0, 0.15) 100%);
+  box-shadow:
+    inset -2px -3px 6px rgba(0, 0, 0, 0.2),
+    inset 2px 3px 6px rgba(255, 255, 255, 0.8),
+    0 6px 14px rgba(0, 0, 0, 0.12);
+  transform: scale(1);
+}
+
+.bubble-unpopped:hover {
+  transform: scale(1.06);
+}
+
+.bubble-unpopped:active {
+  transform: scale(0.92);
+}
+
+/* Little glossy glare reflection */
+.bubble-glare {
+  position: absolute;
+  top: 15%;
+  left: 20%;
+  width: 25%;
+  height: 25%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 80%);
+  pointer-events: none;
+}
+
+/* Popped / Deflated Bubble */
+.bubble-popped {
+  background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.03) 60%, transparent 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.15),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(0, 0, 0, 0.06);
+  transform: scale(0.88);
+  opacity: 0.55;
+}
+
+/* Burst particle wave animation */
+.bubble-pop-anim {
+  animation: popBurst 0.22s ease-out;
+}
+
+@keyframes popBurst {
+  0%   { transform: scale(1.15); filter: brightness(1.4); }
+  60%  { transform: scale(0.82); }
+  100% { transform: scale(0.88); }
+}
+
+/* Rainbow color themes for bubbles */
+.color-pink   { color: #f472b6; }
+.color-purple { color: #c084fc; }
+.color-blue   { color: #60a5fa; }
+.color-cyan   { color: #38bdf8; }
+.color-mint   { color: #34d399; }
+.color-orange { color: #fb923c; }
+
+/* Mode controls */
+.mode-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.mode-chip {
+  padding: 0.45rem 1rem;
+  border-radius: 100px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid rgba(226, 232, 240, 0.9);
+  background: white;
+  color: #64748b;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.mode-chip.active {
+  background: linear-gradient(135deg, #ec4899, #f43f5e);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.btn-refill {
+  background: linear-gradient(135deg, #ec4899, #f43f5e);
+  color: white;
+  border: none;
+  font-family: inherit;
+  font-weight: 700;
+  padding: 0.85rem 1rem;
+  border-radius: 100px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3);
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.btn-refill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.4);
+}
+
+/* Success Celebration Overlay */
+.celebrate-banner {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: white;
+  border-radius: 16px;
+  padding: 0.8rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.28);
+  animation: bounceIn 0.4s ease both;
+  width: 100%;
+  max-width: 400px;
+}
+
+@media (max-width: 400px) {
+  .sheet-container {
+    max-width: 340px;
+    padding: 0.8rem;
+    gap: 9px;
+  }
+}
+
