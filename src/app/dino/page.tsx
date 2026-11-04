@@ -529,6 +529,9 @@ interface TerrainBump {
 export default function DinoPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement | null>(null);
+  const jumpBtnRef = useRef<HTMLButtonElement | null>(null);
+  const duckBtnRef = useRef<HTMLButtonElement | null>(null);
 
   // States
   const [gameState, setGameState] = useState<"idle" | "playing" | "gameover">(
@@ -742,39 +745,104 @@ export default function DinoPage() {
     isDuckingRef.current = false;
   }, []);
 
-  // Touch & Swipe handlers on Canvas for mobile
-  const handleCanvasTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (gameStateRef.current === "idle" || gameStateRef.current === "gameover") {
-      startGame();
-      return;
-    }
-    const t = e.touches[0];
-    touchStartPos.current = { x: t.clientX, y: t.clientY, time: Date.now() };
-  };
+  // Lock mobile viewport overscroll/bounce on Dino page
+  useEffect(() => {
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, []);
 
-  const handleCanvasTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!touchStartPos.current || gameStateRef.current !== "playing") return;
-    const t = e.touches[0];
-    const dy = t.clientY - touchStartPos.current.y;
-    // Downward swipe > 20px -> DUCK (thawad)!
-    if (dy > 20 && !isDuckingRef.current) {
-      handleDuckStart(800);
-      touchStartPos.current = null; // consume swipe
-    }
-  };
+  // Native non-passive touch handlers on Canvas Wrapper to completely block browser scrolling/moving
+  useEffect(() => {
+    const wrapper = canvasWrapperRef.current;
+    if (!wrapper) return;
 
-  const handleCanvasTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!touchStartPos.current) return;
-    const duration = Date.now() - touchStartPos.current.time;
-    // If it was a quick tap (< 400ms) without swiping down -> JUMP (tna9az)!
-    if (duration < 400) {
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      if (gameStateRef.current === "idle" || gameStateRef.current === "gameover") {
+        startGame();
+        return;
+      }
+      const t = e.touches[0];
+      touchStartPos.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      if (!touchStartPos.current || gameStateRef.current !== "playing") return;
+      const t = e.touches[0];
+      const dy = t.clientY - touchStartPos.current.y;
+      // Downward swipe > 20px -> DUCK (thawad)!
+      if (dy > 20 && !isDuckingRef.current) {
+        handleDuckStart(800);
+        touchStartPos.current = null;
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      if (!touchStartPos.current) return;
+      const duration = Date.now() - touchStartPos.current.time;
+      if (duration < 400) {
+        handleJump();
+      }
+      touchStartPos.current = null;
+    };
+
+    wrapper.addEventListener("touchstart", onTouchStart, { passive: false });
+    wrapper.addEventListener("touchmove", onTouchMove, { passive: false });
+    wrapper.addEventListener("touchend", onTouchEnd, { passive: false });
+    wrapper.addEventListener("touchcancel", onTouchEnd, { passive: false });
+
+    return () => {
+      wrapper.removeEventListener("touchstart", onTouchStart);
+      wrapper.removeEventListener("touchmove", onTouchMove);
+      wrapper.removeEventListener("touchend", onTouchEnd);
+      wrapper.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [startGame, handleJump, handleDuckStart]);
+
+  // Native non-passive touch handlers on NA9AZ and THAWAD buttons
+  useEffect(() => {
+    const jumpBtn = jumpBtnRef.current;
+    const duckBtn = duckBtnRef.current;
+
+    const onJumpTouch = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
       handleJump();
+    };
+
+    const onDuckStart = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+      handleDuckStart(800);
+    };
+
+    const onDuckEnd = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
+
+    if (jumpBtn) {
+      jumpBtn.addEventListener("touchstart", onJumpTouch, { passive: false });
     }
-    touchStartPos.current = null;
-  };
+    if (duckBtn) {
+      duckBtn.addEventListener("touchstart", onDuckStart, { passive: false });
+      duckBtn.addEventListener("touchend", onDuckEnd, { passive: false });
+      duckBtn.addEventListener("touchcancel", onDuckEnd, { passive: false });
+    }
+
+    return () => {
+      if (jumpBtn) {
+        jumpBtn.removeEventListener("touchstart", onJumpTouch);
+      }
+      if (duckBtn) {
+        duckBtn.removeEventListener("touchstart", onDuckStart);
+        duckBtn.removeEventListener("touchend", onDuckEnd);
+        duckBtn.removeEventListener("touchcancel", onDuckEnd);
+      }
+    };
+  }, [handleJump, handleDuckStart]);
 
   // Keyboard controls listener
   useEffect(() => {
@@ -1186,11 +1254,9 @@ export default function DinoPage() {
 
       {/* Canvas Game Arena */}
       <div
+        ref={canvasWrapperRef}
         className={styles["canvas-wrapper"]}
         onClick={handleJump}
-        onTouchStart={handleCanvasTouchStart}
-        onTouchMove={handleCanvasTouchMove}
-        onTouchEnd={handleCanvasTouchEnd}
       >
         <canvas
           ref={canvasRef}
@@ -1263,13 +1329,9 @@ export default function DinoPage() {
       {/* Mobile Touch Controls Bar */}
       <div className={styles["controls-bar"]}>
         <button
+          ref={jumpBtnRef}
           className={`${styles["ctrl-btn"]} ${styles["btn-jump"]}`}
           onClick={(e) => {
-            e.stopPropagation();
-            handleJump();
-          }}
-          onTouchStart={(e) => {
-            e.preventDefault();
             e.stopPropagation();
             handleJump();
           }}
@@ -1280,6 +1342,7 @@ export default function DinoPage() {
         </button>
 
         <button
+          ref={duckBtnRef}
           className={`${styles["ctrl-btn"]} ${styles["btn-duck"]} ${
             isDucking ? styles.ducking : ""
           }`}
@@ -1289,15 +1352,6 @@ export default function DinoPage() {
           }}
           onMouseDown={() => handleDuckStart(1200)}
           onMouseUp={handleDuckEnd}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleDuckStart(800);
-          }}
-          onTouchEnd={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
           aria-label="Thawad"
         >
           <span>⬇️</span>
