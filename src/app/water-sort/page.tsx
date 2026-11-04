@@ -4,20 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import styles from "./water-sort.module.css";
 
-// 12 Starkly Distinct, High-Contrast Liquid Color Palettes
-const PALETTE: { name: string; hex: string; gradient: string }[] = [
-  { name: "Rouge",    hex: "#ef4444", gradient: "linear-gradient(180deg, #f87171, #b91c1c)" },
-  { name: "Bleu",     hex: "#2563eb", gradient: "linear-gradient(180deg, #60a5fa, #1d4ed8)" },
-  { name: "Noir",     hex: "#18181b", gradient: "linear-gradient(180deg, #3f3f46, #09090b)" },
-  { name: "Mauve",    hex: "#9333ea", gradient: "linear-gradient(180deg, #c084fc, #7e22ce)" },
-  { name: "Jaune",    hex: "#facc15", gradient: "linear-gradient(180deg, #fef08a, #eab308)" },
-  { name: "Vert",     hex: "#16a34a", gradient: "linear-gradient(180deg, #4ade80, #15803d)" },
-  { name: "Rose",     hex: "#ec4899", gradient: "linear-gradient(180deg, #f472b6, #be185d)" },
-  { name: "Cyan",     hex: "#06b6d4", gradient: "linear-gradient(180deg, #67e8f9, #0891b2)" },
-  { name: "Blanc",    hex: "#f8fafc", gradient: "linear-gradient(180deg, #ffffff, #cbd5e1)" },
-  { name: "Marron",   hex: "#78350f", gradient: "linear-gradient(180deg, #92400e, #451a03)" },
-  { name: "Orange",   hex: "#ea580c", gradient: "linear-gradient(180deg, #fb923c, #c2410c)" },
-  { name: "Gris",     hex: "#64748b", gradient: "linear-gradient(180deg, #94a3b8, #475569)" },
+// 6 Pure, Universal High-Contrast Colors with Clear Icons
+const PALETTE: { name: string; icon: string; hex: string; gradient: string }[] = [
+  { name: "Rouge", icon: "🔴", hex: "#ef4444", gradient: "linear-gradient(180deg, #f87171, #b91c1c)" },
+  { name: "Bleu",  icon: "🔵", hex: "#2563eb", gradient: "linear-gradient(180deg, #60a5fa, #1d4ed8)" },
+  { name: "Jaune", icon: "🟡", hex: "#eab308", gradient: "linear-gradient(180deg, #fde047, #a16207)" },
+  { name: "Vert",  icon: "🟢", hex: "#16a34a", gradient: "linear-gradient(180deg, #4ade80, #15803d)" },
+  { name: "Mauve", icon: "🟣", hex: "#9333ea", gradient: "linear-gradient(180deg, #c084fc, #6b21a8)" },
+  { name: "Noir",  icon: "⚫", hex: "#09090b", gradient: "linear-gradient(180deg, #27272a, #000000)" },
 ];
 
 // Web Audio sound synthesizer for liquid sounds
@@ -84,17 +78,36 @@ function playWaterSound(type: "select" | "pour" | "error" | "win") {
 }
 
 const TUBE_CAPACITY = 4;
+type Difficulty = "facile" | "moyen" | "difficile";
 
-// Generate level tubes
-function generateLevel(colorCount: number): string[][] {
-  // colorCount filled tubes + 2 empty tubes
-  const colorsUsed = PALETTE.slice(0, colorCount).map((p) => p.name);
+// Generate level tubes with repeating distinct colors to eliminate confusing shades
+function generateLevel(diff: Difficulty): string[][] {
+  let colorsInLevel: string[] = [];
+  let tubesPerColor = 1;
 
-  // Pool of units (4 of each color)
+  if (diff === "facile") {
+    // 4 colors x 1 tube = 4 filled tubes (+ 2 empty = 6 tubes)
+    colorsInLevel = PALETTE.slice(0, 4).map((p) => p.name);
+    tubesPerColor = 1;
+  } else if (diff === "moyen") {
+    // 4 colors x 2 tubes = 8 filled tubes (+ 2 empty = 10 tubes)
+    colorsInLevel = PALETTE.slice(0, 4).map((p) => p.name);
+    tubesPerColor = 2;
+  } else {
+    // 6 colors x 2 tubes = 12 filled tubes (+ 2 empty = 14 tubes)
+    colorsInLevel = PALETTE.slice(0, 6).map((p) => p.name);
+    tubesPerColor = 2;
+  }
+
+  const filledTubeCount = colorsInLevel.length * tubesPerColor;
+
+  // Pool of units (4 units per tube)
   const pool: string[] = [];
-  colorsUsed.forEach((c) => {
-    for (let i = 0; i < TUBE_CAPACITY; i++) {
-      pool.push(c);
+  colorsInLevel.forEach((c) => {
+    for (let t = 0; t < tubesPerColor; t++) {
+      for (let i = 0; i < TUBE_CAPACITY; i++) {
+        pool.push(c);
+      }
     }
   });
 
@@ -104,12 +117,12 @@ function generateLevel(colorCount: number): string[][] {
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
 
-  // Create tubes
+  // Create filled tubes
   const tubes: string[][] = [];
-  for (let i = 0; i < colorCount; i++) {
+  for (let i = 0; i < filledTubeCount; i++) {
     const chunk = pool.slice(i * TUBE_CAPACITY, (i + 1) * TUBE_CAPACITY);
     // If a tube accidentally starts 100% solved, swap one element with next tube
-    if (chunk.every((c) => c === chunk[0]) && i < colorCount - 1) {
+    if (chunk.every((c) => c === chunk[0]) && i < filledTubeCount - 1) {
       const nextIdx = (i + 1) * TUBE_CAPACITY;
       [chunk[0], pool[nextIdx]] = [pool[nextIdx], chunk[0]];
     }
@@ -128,13 +141,16 @@ function WaterSortContent() {
   const searchParams = useSearchParams();
   const diffParam = searchParams.get("diff");
 
-  // Mode: "facile" (10 tubes total: 8 colors + 2 empty) or "difficile" (14 tubes total: 12 colors + 2 empty)
-  const [difficulty, setDifficulty] = useState<"facile" | "difficile">(
-    diffParam === "difficile" ? "difficile" : "facile"
-  );
+  // Mode: "facile" (6 tubes), "moyen" (10 tubes), or "difficile" (14 tubes)
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => {
+    if (diffParam === "difficile") return "difficile";
+    if (diffParam === "moyen") return "moyen";
+    return "facile";
+  });
 
-  const colorCount = difficulty === "facile" ? 8 : 12; // 8+2=10 tubes or 12+2=14 tubes
-  const [tubes, setTubes] = useState<string[][]>(() => generateLevel(colorCount));
+  const [tubes, setTubes] = useState<string[][]>(() =>
+    generateLevel(difficulty)
+  );
   const [initialState, setInitialState] = useState<string[][]>(() => tubes);
   const [history, setHistory] = useState<string[][][]>([]);
   const [selectedTube, setSelectedTube] = useState<number | null>(null);
@@ -151,9 +167,8 @@ function WaterSortContent() {
   }, [initialState]);
 
   // New puzzle
-  const newPuzzle = useCallback((diff: "facile" | "difficile") => {
-    const cc = diff === "facile" ? 8 : 12;
-    const generated = generateLevel(cc);
+  const newPuzzle = useCallback((diff: Difficulty) => {
+    const generated = generateLevel(diff);
     setDifficulty(diff);
     setTubes(generated);
     setInitialState(generated.map((t) => [...t]));
@@ -164,7 +179,7 @@ function WaterSortContent() {
   }, []);
 
   // Switch difficulty
-  const handleDiffChange = (newDiff: "facile" | "difficile") => {
+  const handleDiffChange = (newDiff: Difficulty) => {
     if (newDiff === difficulty) return;
     newPuzzle(newDiff);
   };
@@ -281,7 +296,7 @@ function WaterSortContent() {
           <span className="gradient-text">Water Sort 🧪</span>
         </div>
         <div className={styles["badge-watersort"]}>
-          {difficulty === "facile" ? "10 Tubes" : "14 Tubes"}
+          {difficulty === "facile" ? "6 Tubes" : difficulty === "moyen" ? "10 Tubes" : "14 Tubes"}
         </div>
       </div>
 
@@ -295,7 +310,11 @@ function WaterSortContent() {
         <div className={styles["score-item"]}>
           <span className={styles["score-label"]}>Niveau</span>
           <span className={styles["score-value"]}>
-            {difficulty === "facile" ? "Facile 🟢" : "Difficile 🔥"}
+            {difficulty === "facile"
+              ? "Sahel 🟢"
+              : difficulty === "moyen"
+              ? "Moyen 🟡"
+              : "Difficile 🔥"}
           </span>
         </div>
       </div>
@@ -306,7 +325,13 @@ function WaterSortContent() {
           className={`${styles["diff-chip"]} ${difficulty === "facile" ? styles.active : ""}`}
           onClick={() => handleDiffChange("facile")}
         >
-          Facile (10 tubes)
+          Sahel (6 tubes)
+        </button>
+        <button
+          className={`${styles["diff-chip"]} ${difficulty === "moyen" ? styles.active : ""}`}
+          onClick={() => handleDiffChange("moyen")}
+        >
+          Moyen (10 tubes)
         </button>
         <button
           className={`${styles["diff-chip"]} ${difficulty === "difficile" ? styles.active : ""}`}
@@ -345,7 +370,9 @@ function WaterSortContent() {
                       style={{
                         background: colorObj.gradient,
                       }}
-                    />
+                    >
+                      <span className={styles["liquid-icon"]}>{colorObj.icon}</span>
+                    </div>
                   );
                 })}
               </div>

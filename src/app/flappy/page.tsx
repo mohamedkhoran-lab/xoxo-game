@@ -9,18 +9,20 @@ import styles from "./flappy.module.css";
 // ========================
 const W = 360, H = 540;
 const BIRD_X = 80, BIRD_R = 18;
-// Snappy, 60fps-tuned responsive physics
-const GRAVITY = 0.44, FLAP_FORCE = -7.8;
-const PIPE_W = 52, PIPE_GAP = 160, PIPE_SPEED = 2.7;
-const PIPE_INTERVAL = 1500; // ms
+// Rebalanced jump height (~25% smaller flap for precise control)
+const GRAVITY = 0.40, FLAP_FORCE = -6.2;
+const PIPE_W = 52, PIPE_GAP = 165, PIPE_SPEED = 2.5;
+const PIPE_INTERVAL = 1600; // ms
 
-interface Pipe { x: number; topH: number; scored: boolean; }
+interface Pipe { x: number; topH: number; gap: number; scored: boolean; }
 
 function FlappyContent() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const lastPipeTime = useRef(0);
+  const lastPatternRef = useRef<"high" | "low" | "mid">("mid");
+  const pipeCountRef = useRef(0);
 
   const birdY    = useRef(H / 2);
   const velY     = useRef(0);
@@ -89,7 +91,7 @@ function FlappyContent() {
       // Top cap
       ctx.fillRect(pipe.x - 4, pipe.topH - 20, PIPE_W + 8, 20);
       // Bottom pipe
-      const botY = pipe.topH + PIPE_GAP;
+      const botY = pipe.topH + (pipe.gap ?? PIPE_GAP);
       ctx.fillRect(pipe.x, botY, PIPE_W, H - botY);
       // Bottom cap
       ctx.fillRect(pipe.x - 4, botY, PIPE_W + 8, 20);
@@ -150,8 +152,48 @@ function FlappyContent() {
 
     // Pipes
     if (timestamp - lastPipeTime.current > PIPE_INTERVAL) {
-      const topH = 60 + Math.random() * (H - PIPE_GAP - 100 - 40);
-      pipes.current.push({ x: W + 10, topH, scored: false });
+      pipeCountRef.current++;
+      const curScore = scoreRef.current;
+      let topH: number;
+      let gap: number;
+
+      if (curScore < 20) {
+        // Étape 1 (Score 0-19): Sahel / Facile — trous centrés et confortables pour bien démarrer
+        gap = 165;
+        topH = 125 + Math.random() * 60; // 125 - 185
+      } else if (curScore < 30) {
+        // Étape 2 (Score 20-29): Moyen — variations progressives de hauteur
+        gap = 160;
+        topH = 90 + Math.random() * 140; // 90 - 230
+      } else if (curScore < 40) {
+        // Étape 3 (Score 30-39): Plus moyen — dénivelés plus amples
+        gap = 155;
+        topH = 75 + Math.random() * 180; // 75 - 255
+      } else if (curScore < 60) {
+        // Étape 4 (Score 40-59): Difficile — alternance dynamique acrobatique (bas -> haut -> bas)
+        gap = 148;
+        const next = lastPatternRef.current === "low" ? "high" : "low";
+        lastPatternRef.current = next;
+
+        if (next === "low") {
+          topH = 245 + Math.random() * 25; // 245 - 270 (trou bas)
+        } else {
+          topH = 65 + Math.random() * 25; // 65 - 90 (trou haut)
+        }
+      } else {
+        // Étape 5 (Score 60+): Très difficile mais pas impossible (permet aux pros de jouer jusqu'à 100/200)
+        gap = 142;
+        const cycle = pipeCountRef.current % 3;
+        if (cycle === 0) {
+          topH = 250 + Math.random() * 20; // trou bas
+        } else if (cycle === 1) {
+          topH = 60 + Math.random() * 20; // trou haut
+        } else {
+          topH = 145 + Math.random() * 35; // transition intermédiaire
+        }
+      }
+
+      pipes.current.push({ x: W + 10, topH, gap, scored: false });
       lastPipeTime.current = timestamp;
     }
 
@@ -179,7 +221,7 @@ function FlappyContent() {
     // Collision — pipes
     for (const pipe of pipes.current) {
       const inX = BIRD_X + BIRD_R - 4 > pipe.x && BIRD_X - BIRD_R + 4 < pipe.x + PIPE_W;
-      const inY = birdY.current - BIRD_R + 4 < pipe.topH || birdY.current + BIRD_R - 4 > pipe.topH + PIPE_GAP;
+      const inY = birdY.current - BIRD_R + 4 < pipe.topH || birdY.current + BIRD_R - 4 > pipe.topH + (pipe.gap ?? PIPE_GAP);
       if (inX && inY) {
         gameStateRef.current = "gameover";
         setDisplayState("gameover");
@@ -214,6 +256,8 @@ function FlappyContent() {
     gameStateRef.current = "ready";
     setDisplayState("ready");
     lastPipeTime.current = 0;
+    lastPatternRef.current = "mid";
+    pipeCountRef.current = 0;
     cancelAnimationFrame(animRef.current);
     draw();
   }, [draw]);

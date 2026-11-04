@@ -226,6 +226,26 @@ function HomeContent() {
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
 
+            {/* DINO RUNNER */}
+            <button id="btn-game-dino" className={`${styles["mode-card"]} ${styles["game-dino"]}`} onClick={() => router.push("/dino")}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🦖</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Dino Runner</span>
+                <span className={styles["mode-card-sub"]}>jeu te3 bekri li bla internet</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
+            {/* COLORIAGE */}
+            <button id="btn-game-coloriage" className={`${styles["mode-card"]} ${styles["game-coloriage"]}`} onClick={() => router.push("/coloriage")}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🎨</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Coloriage</span>
+                <span className={styles["mode-card-sub"]}>ida rak baghi tlawen</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
           </div>
         </div>
       )}
@@ -335,20 +355,39 @@ function HomeContent() {
         <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step8">
           <h2 className={styles["mode-title"]}>khtar le niveau</h2>
           <div className={styles["mode-cards"]}>
+            {/* 1. Super facile */}
             <button
               id="btn-watersort-easy"
               className={`${styles["mode-card"]} ${styles.friend}`}
               onClick={() => router.push("/water-sort?diff=facile")}
             >
               <div className={styles["game-card-icon"]}>
-                <span style={{ fontSize: "1.6rem" }}>🟢</span>
+                <span style={{ fontSize: "1.6rem" }}>🌱</span>
               </div>
               <div className={styles["mode-card-content"]}>
-                <span className={styles["mode-card-title"]}>niveau sahel w trelakser</span>
-                <span className={styles["mode-card-sub"]}>10 tubes — relax w sahla chwiya</span>
+                <span className={styles["mode-card-title"]}>niveau sahel aaa d3iff</span>
+                <span className={styles["mode-card-sub"]}>6 tubes — super sahel w trelakser</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
+
+            {/* 2. Moyen */}
+            <button
+              id="btn-watersort-medium"
+              className={`${styles["mode-card"]} ${styles.friend}`}
+              onClick={() => router.push("/water-sort?diff=moyen")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🟡</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau moyen chwiya</span>
+                <span className={styles["mode-card-sub"]}>10 tubes — mrigel w trelakser</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
+            {/* 3. Difficile */}
             <button
               id="btn-watersort-hard"
               className={`${styles["mode-card"]} ${styles.machine}`}

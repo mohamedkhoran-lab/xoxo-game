@@ -401,6 +401,12 @@
   .mode-card.game-watersort:hover { border-color: #06b6d4; }
   .mode-card.game-watersort:hover .game-card-icon { border-color: #06b6d4; background: rgba(6, 182, 212, 0.08); }
 
+  .mode-card.game-dino:hover { border-color: #10b981; }
+  .mode-card.game-dino:hover .game-card-icon { border-color: #10b981; background: rgba(16, 185, 129, 0.08); }
+
+  .mode-card.game-coloriage:hover { border-color: #ec4899; }
+  .mode-card.game-coloriage:hover .game-card-icon { border-color: #ec4899; background: rgba(236, 72, 153, 0.08); }
+
   .mode-card:hover::before { opacity: 1; }
   .mode-card.machine:hover { border-color: #6366f1; }
   .mode-card.friend:hover  { border-color: #ec4899; }
