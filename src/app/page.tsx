@@ -246,6 +246,16 @@ function HomeContent() {
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
 
+            {/* HANGMAN */}
+            <button id="btn-game-hangman" className={`${styles["mode-card"]} ${styles["game-hangman"]}`} onClick={() => router.push("/hangman")}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🎯</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Hangman</span>
+                <span className={styles["mode-card-sub"]}>jeu te3 tsalak bnadem</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
           </div>
         </div>
       )}

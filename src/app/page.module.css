@@ -407,6 +407,9 @@
   .mode-card.game-coloriage:hover { border-color: #ec4899; }
   .mode-card.game-coloriage:hover .game-card-icon { border-color: #ec4899; background: rgba(236, 72, 153, 0.08); }
 
+  .mode-card.game-hangman:hover { border-color: #ef4444; }
+  .mode-card.game-hangman:hover .game-card-icon { border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+
   .mode-card:hover::before { opacity: 1; }
   .mode-card.machine:hover { border-color: #6366f1; }
   .mode-card.friend:hover  { border-color: #ec4899; }
