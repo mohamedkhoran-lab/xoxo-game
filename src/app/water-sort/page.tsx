@@ -4,14 +4,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import styles from "./water-sort.module.css";
 
-// 6 Pure, Universal High-Contrast Colors with Clear Icons
+// 9 Pure, Universal High-Contrast Colors with Clear Icons (NO Blanc, NO Gris, NO ambiguous Orange)
 const PALETTE: { name: string; icon: string; hex: string; gradient: string }[] = [
-  { name: "Rouge", icon: "🔴", hex: "#ef4444", gradient: "linear-gradient(180deg, #f87171, #b91c1c)" },
-  { name: "Bleu",  icon: "🔵", hex: "#2563eb", gradient: "linear-gradient(180deg, #60a5fa, #1d4ed8)" },
-  { name: "Jaune", icon: "🟡", hex: "#eab308", gradient: "linear-gradient(180deg, #fde047, #a16207)" },
-  { name: "Vert",  icon: "🟢", hex: "#16a34a", gradient: "linear-gradient(180deg, #4ade80, #15803d)" },
-  { name: "Mauve", icon: "🟣", hex: "#9333ea", gradient: "linear-gradient(180deg, #c084fc, #6b21a8)" },
-  { name: "Noir",  icon: "⚫", hex: "#09090b", gradient: "linear-gradient(180deg, #27272a, #000000)" },
+  { name: "Rouge",  icon: "🔴", hex: "#ef4444", gradient: "linear-gradient(180deg, #f87171, #b91c1c)" },
+  { name: "Bleu",   icon: "🔵", hex: "#2563eb", gradient: "linear-gradient(180deg, #60a5fa, #1d4ed8)" },
+  { name: "Vert",   icon: "🟢", hex: "#16a34a", gradient: "linear-gradient(180deg, #4ade80, #15803d)" },
+  { name: "Jaune",  icon: "🟡", hex: "#facc15", gradient: "linear-gradient(180deg, #fef08a, #ca8a04)" },
+  { name: "Violet", icon: "🟣", hex: "#9333ea", gradient: "linear-gradient(180deg, #c084fc, #7e22ce)" },
+  { name: "Cyan",   icon: "🩵", hex: "#06b6d4", gradient: "linear-gradient(180deg, #67e8f9, #0891b2)" },
+  { name: "Rose",   icon: "🌸", hex: "#ec4899", gradient: "linear-gradient(180deg, #f472b6, #be185d)" },
+  { name: "Noir",   icon: "⚫", hex: "#09090b", gradient: "linear-gradient(180deg, #3f3f46, #09090b)" },
+  { name: "Marron", icon: "🟤", hex: "#78350f", gradient: "linear-gradient(180deg, #b45309, #451a03)" },
 ];
 
 // Web Audio sound synthesizer for liquid sounds
@@ -80,38 +83,31 @@ function playWaterSound(type: "select" | "pour" | "error" | "win") {
 const TUBE_CAPACITY = 4;
 type Difficulty = "facile" | "moyen" | "difficile";
 
-// Generate level tubes with repeating distinct colors to eliminate confusing shades
+// Generate level tubes: 1 tube per distinct color + 2 empty tubes
 function generateLevel(diff: Difficulty): string[][] {
-  let colorsInLevel: string[] = [];
-  let tubesPerColor = 1;
-
+  let colorCount = 4;
   if (diff === "facile") {
-    // 4 colors x 1 tube = 4 filled tubes (+ 2 empty = 6 tubes)
-    colorsInLevel = PALETTE.slice(0, 4).map((p) => p.name);
-    tubesPerColor = 1;
+    // 4 colors + 2 empty = 6 tubes
+    colorCount = 4;
   } else if (diff === "moyen") {
-    // 4 colors x 2 tubes = 8 filled tubes (+ 2 empty = 10 tubes)
-    colorsInLevel = PALETTE.slice(0, 4).map((p) => p.name);
-    tubesPerColor = 2;
+    // 6 colors + 2 empty = 8 tubes
+    colorCount = 6;
   } else {
-    // 6 colors x 2 tubes = 12 filled tubes (+ 2 empty = 14 tubes)
-    colorsInLevel = PALETTE.slice(0, 6).map((p) => p.name);
-    tubesPerColor = 2;
+    // 9 colors + 2 empty = 11 tubes
+    colorCount = 9;
   }
 
-  const filledTubeCount = colorsInLevel.length * tubesPerColor;
+  const colorsInLevel = PALETTE.slice(0, colorCount).map((p) => p.name);
 
-  // Pool of units (4 units per tube)
+  // Pool of units (4 units per color)
   const pool: string[] = [];
   colorsInLevel.forEach((c) => {
-    for (let t = 0; t < tubesPerColor; t++) {
-      for (let i = 0; i < TUBE_CAPACITY; i++) {
-        pool.push(c);
-      }
+    for (let i = 0; i < TUBE_CAPACITY; i++) {
+      pool.push(c);
     }
   });
 
-  // Shuffle pool thoroughly
+  // Thorough Fisher-Yates shuffle
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -119,14 +115,21 @@ function generateLevel(diff: Difficulty): string[][] {
 
   // Create filled tubes
   const tubes: string[][] = [];
-  for (let i = 0; i < filledTubeCount; i++) {
-    const chunk = pool.slice(i * TUBE_CAPACITY, (i + 1) * TUBE_CAPACITY);
-    // If a tube accidentally starts 100% solved, swap one element with next tube
-    if (chunk.every((c) => c === chunk[0]) && i < filledTubeCount - 1) {
-      const nextIdx = (i + 1) * TUBE_CAPACITY;
-      [chunk[0], pool[nextIdx]] = [pool[nextIdx], chunk[0]];
+  for (let i = 0; i < colorCount; i++) {
+    tubes.push(pool.slice(i * TUBE_CAPACITY, (i + 1) * TUBE_CAPACITY));
+  }
+
+  // Ensure no tube starts already 100% solved
+  for (let i = 0; i < tubes.length; i++) {
+    if (tubes[i].every((c) => c === tubes[i][0])) {
+      const other = (i + 1) % tubes.length;
+      const swapIdx = tubes[other].findIndex((c) => c !== tubes[i][0]);
+      if (swapIdx !== -1) {
+        const temp = tubes[i][0];
+        tubes[i][0] = tubes[other][swapIdx];
+        tubes[other][swapIdx] = temp;
+      }
     }
-    tubes.push(chunk);
   }
 
   // Add 2 empty tubes
@@ -141,7 +144,7 @@ function WaterSortContent() {
   const searchParams = useSearchParams();
   const diffParam = searchParams.get("diff");
 
-  // Mode: "facile" (6 tubes), "moyen" (10 tubes), or "difficile" (14 tubes)
+  // Mode: "facile" (6 tubes), "moyen" (8 tubes), or "difficile" (11 tubes)
   const [difficulty, setDifficulty] = useState<Difficulty>(() => {
     if (diffParam === "difficile") return "difficile";
     if (diffParam === "moyen") return "moyen";
@@ -296,7 +299,7 @@ function WaterSortContent() {
           <span className="gradient-text">Water Sort 🧪</span>
         </div>
         <div className={styles["badge-watersort"]}>
-          {difficulty === "facile" ? "6 Tubes" : difficulty === "moyen" ? "10 Tubes" : "14 Tubes"}
+          {difficulty === "facile" ? "6 Tubes" : difficulty === "moyen" ? "8 Tubes" : "11 Tubes"}
         </div>
       </div>
 
@@ -331,13 +334,13 @@ function WaterSortContent() {
           className={`${styles["diff-chip"]} ${difficulty === "moyen" ? styles.active : ""}`}
           onClick={() => handleDiffChange("moyen")}
         >
-          Moyen (10 tubes)
+          Moyen (8 tubes)
         </button>
         <button
           className={`${styles["diff-chip"]} ${difficulty === "difficile" ? styles.active : ""}`}
           onClick={() => handleDiffChange("difficile")}
         >
-          Difficile (14 tubes)
+          Difficile (11 tubes)
         </button>
       </div>
 

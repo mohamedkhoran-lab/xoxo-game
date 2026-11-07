@@ -382,7 +382,7 @@ function HomeContent() {
               </div>
               <div className={styles["mode-card-content"]}>
                 <span className={styles["mode-card-title"]}>niveau moyen chwiya</span>
-                <span className={styles["mode-card-sub"]}>10 tubes — mrigel w trelakser</span>
+                <span className={styles["mode-card-sub"]}>8 tubes — mrigel w trelakser</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
@@ -398,7 +398,7 @@ function HomeContent() {
               </div>
               <div className={styles["mode-card-content"]}>
                 <span className={styles["mode-card-title"]}>niveau dificille w salek rohek</span>
-                <span className={styles["mode-card-sub"]}>14 tubes — pour les vrais pros</span>
+                <span className={styles["mode-card-sub"]}>11 tubes — pour les vrais pros</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
