@@ -181,6 +181,17 @@ function HangmanArcheryContent() {
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasCardRef = useRef<HTMLDivElement | null>(null);
+
+  // Zoom adaptatif pour smartphone ("pas loin, bien zoomé")
+  const [zoomLevel, setZoomLevel] = useState<number>(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 680) {
+      return 1.35; // Zoom par défaut sur téléphone
+    }
+    return 1.0;
+  });
+  const zoomLevelRef = useRef(zoomLevel);
+  zoomLevelRef.current = zoomLevel;
 
   const currentDiffData: DifficultyConfig = ARCHERY_STAGES[difficulty];
   const stageConfig: HangmanStageConfig = currentDiffData.stages[stageIndex];
@@ -265,6 +276,57 @@ function HangmanArcheryContent() {
   useEffect(() => {
     initStage(difficulty, stageIndex);
   }, [difficulty, stageIndex, initStage]);
+
+  // 1. Bloquer le scroll/overscroll/bounce du navigateur sur mobile (comme Pong et Dino)
+  useEffect(() => {
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, []);
+
+  // 2. Écouteurs tactiles natifs non-passifs pour bloquer tout déplacement/scroll du navigateur
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const card = canvasCardRef.current;
+    if (!canvas) return;
+
+    const blockTouch = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
+
+    canvas.addEventListener("touchstart", blockTouch, { passive: false });
+    canvas.addEventListener("touchmove", blockTouch, { passive: false });
+    canvas.addEventListener("touchend", blockTouch, { passive: false });
+    canvas.addEventListener("touchcancel", blockTouch, { passive: false });
+
+    if (card) {
+      card.addEventListener("touchstart", blockTouch, { passive: false });
+      card.addEventListener("touchmove", blockTouch, { passive: false });
+    }
+
+    return () => {
+      canvas.removeEventListener("touchstart", blockTouch);
+      canvas.removeEventListener("touchmove", blockTouch);
+      canvas.removeEventListener("touchend", blockTouch);
+      canvas.removeEventListener("touchcancel", blockTouch);
+      if (card) {
+        card.removeEventListener("touchstart", blockTouch);
+        card.removeEventListener("touchmove", blockTouch);
+      }
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    const card = canvasCardRef.current;
+    if (!card) return;
+    if (!document.fullscreenElement) {
+      card.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
 
   // Boucle de rendu Canvas & Moteur physique 60fps
   useEffect(() => {
@@ -405,7 +467,10 @@ function HangmanArcheryContent() {
           const projY = ropeTopY + t * (ropeBottomY - ropeTopY);
           const distToRope = Math.hypot(arrow.x - projX, arrow.y - projY);
 
-          if (distToRope <= stageConfig.ropeWidth) {
+          const isMobile = typeof window !== "undefined" && window.innerWidth < 680;
+          const hitTolerance = isMobile ? stageConfig.ropeWidth * 1.45 : stageConfig.ropeWidth;
+
+          if (distToRope <= hitTolerance) {
             s.ropeCut = true;
             s.manState = "falling";
             s.manVy = 50;
@@ -681,14 +746,26 @@ function HangmanArcheryContent() {
       // ================= 2. RENDU CANVAS DESIGN WOW =================
       ctx.clearRect(0, 0, 960, 540);
 
-      // Ciel dégradé d'aube médiévale
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, 480);
+      // Camera Zoom & Pan (pour téléphone et zoom)
+      ctx.save();
+      const currentZoom = zoomLevelRef.current;
+      if (currentZoom > 1.0) {
+        // Centrage de la caméra entre l'archer et la cible pour que ce ne soit pas "loin" sur téléphone
+        const targetCenterX = (s.bowX + stageConfig.gallowsX) / 2;
+        const targetCenterY = (s.bowY + stageConfig.gallowsY) / 2 - 20;
+        ctx.translate(480, 270);
+        ctx.scale(currentZoom, currentZoom);
+        ctx.translate(-targetCenterX, -targetCenterY);
+      }
+
+      // Ciel dégradé d'aube médiévale étendu
+      const skyGrad = ctx.createLinearGradient(0, -200, 0, 520);
       skyGrad.addColorStop(0, "#0284c7");
       skyGrad.addColorStop(0.35, "#38bdf8");
       skyGrad.addColorStop(0.7, "#bae6fd");
       skyGrad.addColorStop(1, "#f0fdf4");
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, 960, 540);
+      ctx.fillRect(-350, -250, 1660, 950);
 
       // Soleil doré et halo radiant
       const sunHalo = ctx.createRadialGradient(830, 85, 10, 830, 85, 80);
@@ -717,18 +794,18 @@ function HangmanArcheryContent() {
         ctx.restore();
       });
 
-      // Montagnes lointaines avec forteresse médiévale
+      // Montagnes lointaines avec forteresse médiévale (étendues)
       ctx.fillStyle = "#93c5fd";
       ctx.beginPath();
-      ctx.moveTo(0, 480);
-      ctx.lineTo(0, 320);
+      ctx.moveTo(-350, 480);
+      ctx.lineTo(-350, 320);
       ctx.lineTo(150, 230);
       ctx.lineTo(310, 290);
       ctx.lineTo(490, 200);
       ctx.lineTo(650, 280);
       ctx.lineTo(810, 230);
-      ctx.lineTo(960, 300);
-      ctx.lineTo(960, 480);
+      ctx.lineTo(1350, 300);
+      ctx.lineTo(1350, 480);
       ctx.closePath();
       ctx.fill();
 
@@ -751,31 +828,31 @@ function HangmanArcheryContent() {
       ctx.closePath();
       ctx.fill();
 
-      // Collines moyennes
+      // Collines moyennes étendues
       ctx.fillStyle = "#86efac";
       ctx.beginPath();
-      ctx.moveTo(0, 480);
+      ctx.moveTo(-350, 480);
       ctx.quadraticCurveTo(250, 360, 510, 400);
-      ctx.quadraticCurveTo(770, 440, 960, 380);
-      ctx.lineTo(960, 540);
-      ctx.lineTo(0, 540);
+      ctx.quadraticCurveTo(770, 440, 1350, 380);
+      ctx.lineTo(1350, 600);
+      ctx.lineTo(-350, 600);
       ctx.fill();
 
-      // Sol riche en herbe avec fleurs
+      // Sol riche en herbe avec fleurs étendu
       const groundGrad = ctx.createLinearGradient(0, 475, 0, 540);
       groundGrad.addColorStop(0, "#4ade80");
       groundGrad.addColorStop(0.18, "#22c55e");
       groundGrad.addColorStop(1, "#15803d");
       ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, 475, 960, 65);
+      ctx.fillRect(-350, 475, 1700, 95);
 
       ctx.fillStyle = "#78350f";
-      ctx.fillRect(0, 518, 960, 22);
+      ctx.fillRect(-350, 518, 1700, 40);
 
       // Brins d'herbe
       ctx.strokeStyle = "#86efac";
       ctx.lineWidth = 2.5;
-      for (let gx = 0; gx < 960; gx += 22) {
+      for (let gx = -250; gx < 1250; gx += 22) {
         ctx.beginPath();
         ctx.moveTo(gx, 475);
         ctx.lineTo(gx + 3, 467);
@@ -785,8 +862,8 @@ function HangmanArcheryContent() {
       }
 
       // Fleurs
-      for (let fx = 25; fx < 960; fx += 55) {
-        const isRed = fx % 110 === 0;
+      for (let fx = -220; fx < 1250; fx += 55) {
+        const isRed = Math.abs(fx) % 110 === 0;
         ctx.fillStyle = isRed ? "#ef4444" : "#ffffff";
         ctx.beginPath();
         ctx.arc(fx, 472, 3.5, 0, Math.PI * 2);
@@ -1374,6 +1451,8 @@ function HangmanArcheryContent() {
       });
       ctx.globalAlpha = 1;
 
+      ctx.restore(); // Fin Camera Zoom
+
       animId = requestAnimationFrame(render);
     };
 
@@ -1386,12 +1465,18 @@ function HangmanArcheryContent() {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const scaleX = 960 / rect.width;
-    const scaleY = 540 / rect.height;
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    };
+    let x = (e.clientX - rect.left) * (960 / rect.width);
+    let y = (e.clientY - rect.top) * (540 / rect.height);
+
+    const currentZoom = zoomLevelRef.current;
+    if (currentZoom > 1.0) {
+      const targetCenterX = (stateRef.current.bowX + stageConfig.gallowsX) / 2;
+      const targetCenterY = (stateRef.current.bowY + stageConfig.gallowsY) / 2 - 20;
+      x = (x - 480) / currentZoom + targetCenterX;
+      y = (y - 270) / currentZoom + targetCenterY;
+    }
+
+    return { x, y };
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1480,8 +1565,30 @@ function HangmanArcheryContent() {
             <span>🏹</span>
             <span>{arrowsLeft} flèches</span>
           </div>
+          <button
+            className={`${styles["btn-header-tool"]} ${zoomLevel > 1.0 ? styles.active : ""}`}
+            onClick={() => setZoomLevel((z) => (z > 1.0 ? 1.0 : 1.35))}
+            title="Activer ou désactiver le zoom mobile"
+            id="btn-toggle-zoom"
+          >
+            <span>🔍</span>
+            <span>{zoomLevel > 1.0 ? "1.35x" : "1x"}</span>
+          </button>
+          <button
+            className={styles["btn-header-tool"]}
+            onClick={toggleFullscreen}
+            title="Mode plein écran (Mobile / PC)"
+            id="btn-toggle-fullscreen"
+          >
+            <span>⛶</span>
+          </button>
         </div>
       </div>
+
+      {/* RAPPEL MOBILE POUR ÉCRAN PAYSAGE */}
+      <span className={styles["mobile-hint-pill"]}>
+        📲 Tourne en paysage ou clique ⛶ pour plein écran
+      </span>
 
       {/* SELECTEUR DE DIFFICULTÉ (3 Niveaux : Sahel, Moyen, Hard) */}
       <div className={styles["diff-container"]}>
@@ -1557,7 +1664,7 @@ function HangmanArcheryContent() {
       </div>
 
       {/* CANVAS ARENA CARD DESIGN WOW */}
-      <div className={styles["canvas-card"]}>
+      <div ref={canvasCardRef} className={styles["canvas-card"]}>
         <canvas
           ref={canvasRef}
           width={960}
