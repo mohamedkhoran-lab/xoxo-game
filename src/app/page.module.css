@@ -410,6 +410,9 @@
   .mode-card.game-hangman:hover { border-color: #ef4444; }
   .mode-card.game-hangman:hover .game-card-icon { border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
+  .mode-card.game-football:hover { border-color: #10b981; }
+  .mode-card.game-football:hover .game-card-icon { border-color: #10b981; background: rgba(16, 185, 129, 0.08); }
+
   .mode-card:hover::before { opacity: 1; }
   .mode-card.machine:hover { border-color: #6366f1; }
   .mode-card.friend:hover  { border-color: #ec4899; }

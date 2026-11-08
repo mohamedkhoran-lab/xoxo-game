@@ -256,6 +256,16 @@ function HomeContent() {
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
 
+            {/* FOOTBALL */}
+            <button id="btn-game-football" className={`${styles["mode-card"]} ${styles["game-football"]}`} onClick={() => router.push("/football")}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>⚽</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Football</span>
+                <span className={styles["mode-card-sub"]}>te33 bolla</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
           </div>
         </div>
       )}

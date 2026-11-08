@@ -183,13 +183,8 @@ function HangmanArcheryContent() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasCardRef = useRef<HTMLDivElement | null>(null);
 
-  // Zoom adaptatif pour smartphone ("pas loin, bien zoomé")
-  const [zoomLevel, setZoomLevel] = useState<number>(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 680) {
-      return 1.35; // Zoom par défaut sur téléphone
-    }
-    return 1.0;
-  });
+  // Zoom adaptatif pour smartphone : 1.0 par défaut pour voir tout le terrain sans couper l'archer
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const zoomLevelRef = useRef(zoomLevel);
   zoomLevelRef.current = zoomLevel;
 
@@ -203,10 +198,10 @@ function HangmanArcheryContent() {
   // État physique et d'animation
   const stateRef = useRef({
     bowX: 120,
-    bowY: 395,
+    bowY: 385,
     isDragging: false,
     dragCurrentX: 120,
-    dragCurrentY: 395,
+    dragCurrentY: 385,
     arrows: [] as Arrow[],
     activeArrow: null as Arrow | null,
     manX: stageConfig.gallowsX,
