@@ -27,7 +27,6 @@ function playFootballSound(type: "kick" | "whistle" | "goal" | "save" | "post" |
       osc.start();
       osc.stop(ctx.currentTime + 0.16);
 
-      // Bruit blanc de frappe
       const bufferSize = ctx.sampleRate * 0.08;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -142,7 +141,7 @@ interface Point {
   y: number;
 }
 
-// Lissage Catmull-Rom pour obtenir la courbe Score! Hero fluide
+// Lissage Catmull-Rom
 function getCatmullRomPoints(points: Point[], numSegmentsPerSpan = 8): Point[] {
   if (points.length < 2) return points;
   if (points.length === 2) {
@@ -219,7 +218,6 @@ function computeAerodynamicTrajectory(rawPoints: Point[]): {
     return { points: getCatmullRomPoints(rawPoints, 6), isDerived: false, inflections: 0 };
   }
 
-  // Vecteur normal perpendiculaire à la corde reliant le départ à la cible
   const nx = -dy / cordLen;
   const ny = dx / cordLen;
 
@@ -241,7 +239,7 @@ function computeAerodynamicTrajectory(rawPoints: Point[]): {
     }
   }
 
-  // RÈGLE SCORE! HERO RÉELLE : Si plusieurs zigzags (inflections > 1), le ballon dérive !
+  // RÈGLE PHYSIQUE SCORE! HERO : Si plusieurs zigzags (inflections > 1), le ballon dérive !
   if (inflections > 1) {
     const avgDev = netDev / (rawPoints.length - 2);
     const clampedDev = Math.max(-65, Math.min(65, avgDev * 0.85));
@@ -294,21 +292,21 @@ function FootballGameContent() {
   const [streak, setStreak] = useState(0);
   const [shotsCount, setShotsCount] = useState(0);
   const [lastShotSpeed, setLastShotSpeed] = useState(98);
-  const [lastShotPlacement, setLastShotPlacement] = useState("Frappe Enroulée 🎯");
+  const [lastShotPlacement, setLastShotPlacement] = useState("Pleine Lucarne 🎯");
   const [gameResult, setGameResult] = useState<"idle" | "goal" | "saved" | "post" | "miss">("idle");
 
-  // État du moteur 60 FPS
+  // État du moteur 60 FPS (Résolution Portrait 540 x 800)
   const stateRef = useRef({
-    // Ballon
-    ballX: 480,
-    ballY: 440,
+    // Ballon au point de penalty (270, 620)
+    ballX: 270,
+    ballY: 620,
     ballZ: 0,
     ballRadius: 18,
     ballSpin: 0,
     ballVisible: true,
     inFlight: false,
     flightProgress: 0,
-    flightDuration: 0.62,
+    flightDuration: 0.6,
     isBulletShot: false,
     curvePoints: [] as Point[],
     trail: [] as { x: number; y: number; z: number; alpha: number }[],
@@ -320,21 +318,21 @@ function FootballGameContent() {
     drawStartTime: 0,
     isDerived: false,
 
-    // Tireur
-    strikerX: 480,
-    strikerY: 450,
+    // Tireur derrière le ballon (270, 640)
+    strikerX: 270,
+    strikerY: 640,
     strikerPhase: 0,
     isKicking: false,
 
-    // Gardien de but réaliste (Simulation physique réelle)
-    gkBaseX: 480,
-    gkBaseY: 218,
-    gkStartX: 480,
-    gkStartY: 218,
-    gkX: 480,
-    gkY: 218,
-    gkTargetX: 480,
-    gkTargetY: 218,
+    // Gardien de but dans la cage à (270, 280)
+    gkBaseX: 270,
+    gkBaseY: 280,
+    gkStartX: 270,
+    gkStartY: 280,
+    gkX: 270,
+    gkY: 280,
+    gkTargetX: 270,
+    gkTargetY: 280,
     gkState: "idle" as "idle" | "diving" | "saved" | "beaten",
     gkDiveProgress: 0,
     gkDiveDuration: 0.52,
@@ -342,10 +340,10 @@ function FootballGameContent() {
     gkBodyAngle: 0,
     gkIsHighDive: false,
     gkDiveDir: 1,
-    gkGloveX: 480,
-    gkGloveY: 200,
+    gkGloveX: 270,
+    gkGloveY: 260,
 
-    // Caméra cinématique dynamique (Score! Hero zoom & pan)
+    // Caméra cinématique dynamique
     camZoom: 1.0,
     camPanX: 0,
     camPanY: 0,
@@ -363,17 +361,17 @@ function FootballGameContent() {
     time: 0,
   });
 
-  // Initialisation du filet 3D
+  // Initialisation du filet 3D (Cages de 120 à 420, hauteur 190 à 285)
   const initNetGrid = useCallback(() => {
     const s = stateRef.current;
-    const cols = 16;
-    const rows = 9;
+    const cols = 14;
+    const rows = 8;
     const nodes: NetNode[][] = [];
 
-    const goalLeft = 300;
-    const goalRight = 660;
-    const goalTop = 138;
-    const goalBottom = 224;
+    const goalLeft = 120;
+    const goalRight = 420;
+    const goalTop = 190;
+    const goalBottom = 285;
 
     for (let r = 0; r <= rows; r++) {
       const rowNodes: NetNode[] = [];
@@ -400,8 +398,8 @@ function FootballGameContent() {
   // Réinitialiser le tir
   const resetShot = useCallback(() => {
     const s = stateRef.current;
-    s.ballX = 480;
-    s.ballY = 440;
+    s.ballX = 270;
+    s.ballY = 620;
     s.ballZ = 0;
     s.ballRadius = 18;
     s.ballSpin = 0;
@@ -420,17 +418,17 @@ function FootballGameContent() {
     s.strikerPhase = 0;
     s.isKicking = false;
 
-    s.gkStartX = 480;
-    s.gkStartY = 218;
-    s.gkX = 480;
-    s.gkY = 218;
-    s.gkTargetX = 480;
-    s.gkTargetY = 218;
+    s.gkStartX = 270;
+    s.gkStartY = 280;
+    s.gkX = 270;
+    s.gkY = 280;
+    s.gkTargetX = 270;
+    s.gkTargetY = 280;
     s.gkState = "idle";
     s.gkDiveProgress = 0;
     s.gkBodyAngle = 0;
-    s.gkGloveX = 480;
-    s.gkGloveY = 200;
+    s.gkGloveX = 270;
+    s.gkGloveY = 260;
 
     s.camZoom = 1.0;
     s.camPanX = 0;
@@ -456,12 +454,22 @@ function FootballGameContent() {
     };
   }, []);
 
+  // Écouteur tactile natif non-bloquant pour les boutons !
   useEffect(() => {
     const canvas = canvasRef.current;
-    const card = canvasCardRef.current;
     if (!canvas) return;
 
     const blockTouch = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Ne JAMAIS bloquer les boutons ou overlays
+      if (
+        target &&
+        (target.tagName === "BUTTON" ||
+          target.closest("button") ||
+          target.closest(`.${styles.overlay}`))
+      ) {
+        return;
+      }
       if (e.cancelable) e.preventDefault();
     };
 
@@ -470,20 +478,11 @@ function FootballGameContent() {
     canvas.addEventListener("touchend", blockTouch, { passive: false });
     canvas.addEventListener("touchcancel", blockTouch, { passive: false });
 
-    if (card) {
-      card.addEventListener("touchstart", blockTouch, { passive: false });
-      card.addEventListener("touchmove", blockTouch, { passive: false });
-    }
-
     return () => {
       canvas.removeEventListener("touchstart", blockTouch);
       canvas.removeEventListener("touchmove", blockTouch);
       canvas.removeEventListener("touchend", blockTouch);
       canvas.removeEventListener("touchcancel", blockTouch);
-      if (card) {
-        card.removeEventListener("touchstart", blockTouch);
-        card.removeEventListener("touchmove", blockTouch);
-      }
     };
   }, []);
 
@@ -515,10 +514,10 @@ function FootballGameContent() {
 
       // ================= 1. PHYSIQUE & ANIMATIONS =================
       // Flashs dans la foule
-      if (Math.random() < 0.09) {
+      if (Math.random() < 0.08) {
         s.flashbulbs.push({
-          x: 40 + Math.random() * 880,
-          y: 40 + Math.random() * 85,
+          x: 20 + Math.random() * 500,
+          y: 70 + Math.random() * 110,
           alpha: 1,
         });
       }
@@ -538,14 +537,14 @@ function FootballGameContent() {
         s.strikerPhase = Math.min(1.0, s.strikerPhase + dt * 6.5);
       }
 
-      // Gardien en attente (Ready bounce)
+      // Gardien en attente
       if (s.gkState === "idle") {
         s.gkBounceTimer += dt * 5.5;
         s.gkY = s.gkBaseY + Math.sin(s.gkBounceTimer) * 2;
         s.gkX = s.gkBaseX + Math.sin(s.gkBounceTimer * 0.5) * 4;
       }
 
-      // Plongeon du gardien ("saute comme vrai")
+      // Plongeon du gardien
       if (s.gkState === "diving") {
         s.gkDiveProgress = Math.min(1.0, s.gkDiveProgress + dt / s.gkDiveDuration);
         const p = s.gkDiveProgress;
@@ -553,27 +552,23 @@ function FootballGameContent() {
         const easeX = 1 - Math.pow(1 - p, 2.4);
         s.gkX = s.gkStartX + (s.gkTargetX - s.gkStartX) * easeX;
 
-        // Hauteur de saut balistique
-        const jumpAltitude = s.gkIsHighDive ? 46 : 16;
+        const jumpAltitude = s.gkIsHighDive ? 44 : 16;
         const jumpArc = Math.sin(p * Math.PI) * jumpAltitude;
         const targetLift = s.gkStartY + (s.gkTargetY - s.gkStartY) * easeX;
         s.gkY = targetLift - jumpArc;
 
-        // Angle de rotation athlétique
         const targetAngle = s.gkDiveDir * (s.gkIsHighDive ? 1.15 : 0.8);
         s.gkBodyAngle = targetAngle * Math.sin(Math.min(1, p * 1.3) * Math.PI * 0.5);
 
-        // Position de la main / gant
-        const armStretch = s.gkIsHighDive ? 48 : 38;
+        const armStretch = s.gkIsHighDive ? 44 : 36;
         s.gkGloveX = s.gkX + s.gkDiveDir * Math.cos(Math.abs(s.gkBodyAngle) * 0.7) * armStretch;
         s.gkGloveY = s.gkY - Math.sin(Math.abs(s.gkBodyAngle) * 0.7) * armStretch - 6;
 
-        // Projections d'herbe au sol lors de la poussée
         if (p < 0.22 && Math.random() < 0.45) {
           s.particles.push({
             x: s.gkStartX - s.gkDiveDir * 8,
-            y: 220,
-            vx: -s.gkDiveDir * (30 + Math.random() * 50),
+            y: 285,
+            vx: -s.gkDiveDir * (25 + Math.random() * 45),
             vy: -15 - Math.random() * 30,
             color: Math.random() > 0.5 ? "#15803d" : "#ffffff",
             size: 2 + Math.random() * 2,
@@ -583,16 +578,16 @@ function FootballGameContent() {
         }
       }
 
-      // PHYSIQUE DU BALLON EN VOL
+      // PHYSIQUE DU BALLON EN VOL (De 620 à ~230)
       if (s.inFlight && s.curvePoints.length >= 2) {
         s.flightProgress += dt / s.flightDuration;
         const p = Math.min(s.flightProgress, 1.0);
 
-        // Caméra cinématique Score! Hero : zoom progressif et pan fluide vers le but
+        // Zoom & Pan cinématique Score! Hero
         const targetCamZoom = 1.0 + p * 0.12;
         s.camZoom += (targetCamZoom - s.camZoom) * 0.1;
-        const targetPanX = (s.ballX - 480) * 0.18;
-        const targetPanY = (s.ballY - 260) * 0.12;
+        const targetPanX = (s.ballX - 270) * 0.18;
+        const targetPanY = (s.ballY - 450) * 0.15;
         s.camPanX += (targetPanX - s.camPanX) * 0.1;
         s.camPanY += (targetPanY - s.camPanY) * 0.1;
 
@@ -623,10 +618,10 @@ function FootballGameContent() {
           const targetX = s.curvePoints[s.curvePoints.length - 1].x;
           const targetY = s.curvePoints[s.curvePoints.length - 1].y;
 
-          const goalLeft = 300;
-          const goalRight = 660;
-          const goalTop = 138;
-          const goalBottom = 224;
+          const goalLeft = 120;
+          const goalRight = 420;
+          const goalTop = 190;
+          const goalBottom = 285;
 
           const hitLeftPost = Math.abs(targetX - goalLeft) < 13 && targetY >= goalTop - 6 && targetY <= goalBottom;
           const hitRightPost = Math.abs(targetX - goalRight) < 13 && targetY >= goalTop - 6 && targetY <= goalBottom;
@@ -659,14 +654,12 @@ function FootballGameContent() {
             targetY >= goalTop + 6 &&
             targetY <= goalBottom
           ) {
-            // VERIFICATION PHYSIQUE REELLE DE L'ARRET (DISTANCE BALLE / GANTS)
-            // Le gardien n'arrête QUE si ses gants ou son corps sont véritablement à portée !
+            // VERIFICATION PHYSIQUE REELLE DE L'ARRET
             const distGlove = Math.hypot(targetX - s.gkGloveX, targetY - s.gkGloveY);
             const distTorso = Math.hypot(targetX - s.gkX, targetY - s.gkY);
-            const isPhysicallySaved = distGlove < 34 || distTorso < 26;
+            const isPhysicallySaved = distGlove < 32 || distTorso < 24;
 
             if (isPhysicallySaved) {
-              // Arrêt du gardien
               playFootballSound("save");
               setGameResult("saved");
               setStreak(0);
@@ -702,8 +695,8 @@ function FootballGameContent() {
                 s.particles.push({
                   x: targetX,
                   y: targetY,
-                  vx: (Math.random() - 0.5) * 460,
-                  vy: -150 - Math.random() * 340,
+                  vx: (Math.random() - 0.5) * 440,
+                  vy: -140 - Math.random() * 320,
                   color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
                   size: 3 + Math.random() * 4,
                   alpha: 1,
@@ -737,8 +730,8 @@ function FootballGameContent() {
         s.netNodes.forEach((row) => {
           row.forEach((node) => {
             const dist = Math.hypot(node.baseX - s.netImpactX, node.baseY - s.netImpactY);
-            if (dist < 90) {
-              const force = (1 - dist / 90) * 24;
+            if (dist < 85) {
+              const force = (1 - dist / 85) * 22;
               node.y = node.baseY - force * 0.45;
               node.x = node.baseX + (node.baseX - s.netImpactX) * 0.18;
             }
@@ -746,45 +739,45 @@ function FootballGameContent() {
         });
       }
 
-      // ================= 2. RENDU CANVAS AVEC CAMERA CINEMATIQUE =================
-      ctx.clearRect(0, 0, 960, 540);
+      // ================= 2. RENDU CANVAS PORTRAIT 540 x 800 =================
+      ctx.clearRect(0, 0, 540, 800);
 
       ctx.save();
-      // Application de la caméra dynamique
       const shakeX = (Math.random() - 0.5) * s.camShake;
       const shakeY = (Math.random() - 0.5) * s.camShake;
-      ctx.translate(480 + shakeX - s.camPanX, 270 + shakeY - s.camPanY);
+      ctx.translate(270 + shakeX - s.camPanX, 400 + shakeY - s.camPanY);
       ctx.scale(s.camZoom, s.camZoom);
-      ctx.translate(-480, -270);
+      ctx.translate(-270, -400);
 
-      // A) Ciel de nuit moderne
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, 180);
+      // A) Ciel de nuit & Tribune (0 à 240)
+      const skyGrad = ctx.createLinearGradient(0, -100, 0, 220);
       skyGrad.addColorStop(0, "#030712");
-      skyGrad.addColorStop(0.5, "#0b1528");
+      skyGrad.addColorStop(0.6, "#0b1528");
       skyGrad.addColorStop(1, "#111827");
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(-200, -200, 1360, 380);
+      ctx.fillRect(-150, -150, 840, 390);
 
-      // B) Tribune de supporters
-      const standsGrad = ctx.createLinearGradient(0, 48, 0, 165);
+      // Tribunes
+      const standsGrad = ctx.createLinearGradient(0, 60, 0, 220);
       standsGrad.addColorStop(0, "#1e293b");
       standsGrad.addColorStop(0.5, "#334155");
       standsGrad.addColorStop(1, "#1e293b");
       ctx.fillStyle = standsGrad;
-      ctx.fillRect(-200, 48, 1360, 117);
+      ctx.fillRect(-150, 60, 840, 155);
 
+      // Supporters
       ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-      for (let sx = -100; sx < 1060; sx += 8) {
-        for (let sy = 56; sy < 145; sy += 11) {
+      for (let sx = -50; sx < 590; sx += 8) {
+        for (let sy = 70; sy < 205; sy += 11) {
           ctx.beginPath();
           ctx.arc(sx + (sy % 16 === 0 ? 4 : 0), sy, 3, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      for (let fx = -80; fx < 1040; fx += 65) {
-        ctx.fillStyle = fx % 130 === 0 ? "#10b981" : "#ffffff";
-        ctx.fillRect(fx, 82 + Math.sin(s.time * 2.2 + fx) * 3, 20, 5);
+      for (let fx = -30; fx < 570; fx += 55) {
+        ctx.fillStyle = fx % 110 === 0 ? "#10b981" : "#ffffff";
+        ctx.fillRect(fx, 110 + Math.sin(s.time * 2.2 + fx) * 3, 18, 5);
       }
 
       s.flashbulbs.forEach((fb) => {
@@ -794,89 +787,102 @@ function FootballGameContent() {
         ctx.fill();
       });
 
-      // C) Projecteurs de stade LED
-      const lightX = [130, 330, 630, 830];
+      // Projecteurs LED de stade
+      const lightX = [60, 480];
       lightX.forEach((lx) => {
         ctx.fillStyle = "#64748b";
-        ctx.fillRect(lx - 2, 8, 4, 38);
-        ctx.fillRect(lx - 16, 8, 32, 7);
+        ctx.fillRect(lx - 2, 10, 4, 45);
+        ctx.fillRect(lx - 16, 10, 32, 7);
 
         ctx.fillStyle = "#ffffff";
         for (let b = -12; b <= 12; b += 8) {
           ctx.beginPath();
-          ctx.arc(lx + b, 11, 2.5, 0, Math.PI * 2);
+          ctx.arc(lx + b, 13, 2.5, 0, Math.PI * 2);
           ctx.fill();
         }
 
-        const coneGrad = ctx.createRadialGradient(lx, 12, 5, lx, 260, 320);
+        const coneGrad = ctx.createRadialGradient(lx, 15, 5, lx, 320, 380);
         coneGrad.addColorStop(0, "rgba(255, 255, 255, 0.42)");
         coneGrad.addColorStop(0.3, "rgba(254, 240, 138, 0.12)");
         coneGrad.addColorStop(1, "rgba(254, 240, 138, 0)");
         ctx.fillStyle = coneGrad;
         ctx.beginPath();
-        ctx.moveTo(lx - 14, 15);
-        ctx.lineTo(lx - 180, 540);
-        ctx.lineTo(lx + 180, 540);
-        ctx.lineTo(lx + 14, 15);
+        ctx.moveTo(lx - 14, 16);
+        ctx.lineTo(lx - 220, 800);
+        ctx.lineTo(lx + 220, 800);
+        ctx.lineTo(lx + 14, 16);
         ctx.closePath();
         ctx.fill();
       });
 
-      // D) Panneaux publicitaires LED
+      // Panneau LED publicitaire
       ctx.fillStyle = "#022c22";
-      ctx.fillRect(-200, 155, 1360, 18);
+      ctx.fillRect(-150, 215, 840, 20);
       ctx.fillStyle = "#34d399";
-      ctx.font = '900 10.5px "Outfit", sans-serif';
+      ctx.font = '900 11px "Outfit", sans-serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("★ SCORE! HERO ★ TE33 BOLLA ★ STRIKE & GOAL ★ TOP CORNER CHALLENGE ★", 480, 164);
+      ctx.fillText("★ SCORE! HERO ★ TE33 BOLLA ★ STRIKE & GOAL ★ PORTRAIT EDITION ★", 270, 225);
 
-      // E) Pelouse 3D
-      const grassStartY = 170;
-      const grassStripeH = 37;
-      for (let row = 0; row < 12; row++) {
+      // Pelouse en perspective (235 à 800)
+      const grassStartY = 235;
+      const grassStripeH = 42;
+      for (let row = 0; row < 15; row++) {
         const yTop = grassStartY + row * grassStripeH;
         const isDark = row % 2 === 0;
         ctx.fillStyle = isDark ? "#15803d" : "#16a34a";
-        ctx.fillRect(-200, yTop, 1360, grassStripeH + 1);
+        ctx.fillRect(-150, yTop, 840, grassStripeH + 1);
       }
 
+      // Lignes de surface de réparation
       ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
       ctx.lineWidth = 3;
 
+      // Ligne de but
       ctx.beginPath();
-      ctx.moveTo(-100, 224);
-      ctx.lineTo(1060, 224);
+      ctx.moveTo(-50, 285);
+      ctx.lineTo(590, 285);
       ctx.stroke();
 
+      // Grande surface (18 mètres)
       ctx.beginPath();
-      ctx.moveTo(210, 224);
-      ctx.lineTo(130, 480);
-      ctx.lineTo(830, 480);
-      ctx.lineTo(750, 224);
+      ctx.moveTo(80, 285);
+      ctx.lineTo(40, 560);
+      ctx.lineTo(500, 560);
+      ctx.lineTo(460, 285);
       ctx.stroke();
 
+      // Petite surface (6 mètres)
+      ctx.beginPath();
+      ctx.moveTo(150, 285);
+      ctx.lineTo(135, 375);
+      ctx.lineTo(405, 375);
+      ctx.lineTo(390, 285);
+      ctx.stroke();
+
+      // Point de penalty (270, 620)
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(480, 440, 4.5, 0, Math.PI * 2);
+      ctx.arc(270, 620, 5, 0, Math.PI * 2);
       ctx.fill();
 
+      // Arc de cercle de penalty
       ctx.beginPath();
-      ctx.arc(480, 440, 52, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.arc(270, 620, 55, Math.PI * 0.15, Math.PI * 0.85);
       ctx.stroke();
 
-      // F) But 3D (Poteaux, Barre & Filet)
-      const goalLeft = 300;
-      const goalRight = 660;
-      const goalTop = 138;
-      const goalBottom = 224;
+      // But 3D (Cages de 120 à 420, hauteur 190 à 285)
+      const goalLeft = 120;
+      const goalRight = 420;
+      const goalTop = 190;
+      const goalBottom = 285;
 
       ctx.fillStyle = "rgba(2, 44, 34, 0.72)";
       ctx.beginPath();
       ctx.moveTo(goalLeft, goalTop);
       ctx.lineTo(goalRight, goalTop);
-      ctx.lineTo(goalRight + 22, goalBottom);
-      ctx.lineTo(goalLeft - 22, goalBottom);
+      ctx.lineTo(goalRight + 20, goalBottom);
+      ctx.lineTo(goalLeft - 20, goalBottom);
       ctx.closePath();
       ctx.fill();
 
@@ -935,13 +941,13 @@ function FootballGameContent() {
       ctx.lineTo(goalRight + 1, goalTop - 1);
       ctx.stroke();
 
-      // ================= G) GARDIEN DE BUT REALISTE ("SAUTE COMME VRAI") =================
+      // Gardien de but réaliste
       const isDiving = s.gkState === "diving";
       const isSaved = s.gkState === "saved";
       const isBeaten = s.gkState === "beaten";
 
-      // Ombre au sol (se détache en l'air !)
-      const groundY = 222;
+      // Ombre du gardien sur la ligne de but (285)
+      const groundY = 285;
       const heightOffGround = Math.max(0, groundY - s.gkY);
       const shadowScale = Math.max(0.35, 1 - heightOffGround / 65);
       ctx.fillStyle = `rgba(0, 0, 0, ${0.32 * shadowScale})`;
@@ -1039,7 +1045,7 @@ function FootballGameContent() {
         ctx.arc(-dir * 20, -9, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Bras avant en pleine détente
+        // Bras avant
         ctx.strokeStyle = jerseyMain;
         ctx.lineWidth = 6;
         ctx.beginPath();
@@ -1155,7 +1161,7 @@ function FootballGameContent() {
 
       ctx.restore(); // Fin Gardien
 
-      // H) Traînée lumineuse derrière le ballon
+      // Traînée du ballon
       s.trail.forEach((t) => {
         ctx.fillStyle = s.isBulletShot
           ? `rgba(56, 189, 248, ${t.alpha * 0.75})`
@@ -1166,18 +1172,18 @@ function FootballGameContent() {
         ctx.fill();
       });
 
-      // I) BALLON DE FOOTBALL REALISTE (3D FIFA MATCH BALL)
+      // Ballon 3D officiel
       if (s.ballVisible) {
         ctx.save();
         ctx.translate(s.ballX, s.ballY);
 
-        const shadowY = Math.max(0, 440 - s.ballY);
-        const shadowDistScale = Math.max(0.3, 1 - shadowY / 120);
+        const shadowY = Math.max(0, 620 - s.ballY);
+        const shadowDistScale = Math.max(0.3, 1 - shadowY / 150);
         ctx.fillStyle = `rgba(0, 0, 0, ${0.36 * shadowDistScale})`;
         ctx.beginPath();
         ctx.ellipse(
           0,
-          s.ballRadius + 2 + shadowY * 0.15,
+          s.ballRadius + 2 + shadowY * 0.12,
           s.ballRadius * shadowDistScale * 1.1,
           s.ballRadius * shadowDistScale * 0.45,
           0,
@@ -1218,7 +1224,7 @@ function FootballGameContent() {
         ctx.restore();
       }
 
-      // J) TIREUR AU PREMIER PLAN
+      // Tireur (Striker) au premier plan (270, 640)
       ctx.save();
       ctx.translate(s.strikerX, s.strikerY);
 
@@ -1286,7 +1292,7 @@ function FootballGameContent() {
 
       ctx.restore(); // Fin Striker
 
-      // ================= K) FLECHE SCORE! HERO GRIS / BLANCHE =================
+      // ================= FLÈCHE SCORE! HERO GRIS / BLANCHE =================
       if (s.isDrawing && s.smoothDrawPoints.length >= 2) {
         const pts = s.smoothDrawPoints;
 
@@ -1304,7 +1310,7 @@ function FootballGameContent() {
         }
         ctx.stroke();
 
-        // 2. Bordure gris clair Score! Hero (#cbd5e1 / #e2e8f0)
+        // 2. Bordure gris clair Score! Hero
         ctx.strokeStyle = "rgba(226, 232, 240, 0.95)";
         ctx.lineWidth = 6;
         ctx.beginPath();
@@ -1314,12 +1320,12 @@ function FootballGameContent() {
         }
         ctx.stroke();
 
-        // 3. Cœur blanc pur éclatant Score! Hero (#ffffff)
+        // 3. Cœur blanc éclatant
         ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 3.5;
         ctx.stroke();
 
-        // 4. Perles blanches espacées le long de la trajectoire
+        // 4. Perles blanches espacées
         const stepDist = 24;
         let distAccum = 0;
         for (let i = 1; i < pts.length; i++) {
@@ -1342,7 +1348,7 @@ function FootballGameContent() {
           }
         }
 
-        // 5. Chevrons directionnels blancs (> > >)
+        // 5. Chevrons directionnels (> > >)
         let chvDist = 0;
         for (let i = 2; i < pts.length - 2; i += 2) {
           const segDist = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
@@ -1364,7 +1370,7 @@ function FootballGameContent() {
           }
         }
 
-        // 6. TÊTE DE FLÈCHE SCORE! HERO BLANCHE ÉLÉGANTE
+        // 6. Tête de flèche blanche élégante
         const lastPt = pts[pts.length - 1];
         const prevPt = pts[Math.max(0, pts.length - 4)];
         const arrowAngle = Math.atan2(lastPt.y - prevPt.y, lastPt.x - prevPt.x);
@@ -1396,7 +1402,7 @@ function FootballGameContent() {
 
         ctx.restore();
 
-        // 7. RÉTICULE DE CIBLE CIRCULAIRE SCORE! HERO
+        // 7. Réticule de cible circulaire
         ctx.save();
         ctx.translate(lastPt.x, lastPt.y);
 
@@ -1449,7 +1455,7 @@ function FootballGameContent() {
         ctx.restore();
       }
 
-      // L) Confettis
+      // Confettis
       s.particles.forEach((p) => {
         ctx.fillStyle = p.color;
         ctx.globalAlpha = p.alpha;
@@ -1468,14 +1474,14 @@ function FootballGameContent() {
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  // ÉCOUTEURS POINTER
+  // ÉCOUTEURS POINTER (Format Portrait 540 x 800)
   const getCanvasCoords = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (clientX - rect.left) * (960 / rect.width),
-      y: (clientY - rect.top) * (540 / rect.height),
+      x: (clientX - rect.left) * (540 / rect.width),
+      y: (clientY - rect.top) * (800 / rect.height),
     };
   };
 
@@ -1502,7 +1508,7 @@ function FootballGameContent() {
     const last = s.rawDrawPoints[s.rawDrawPoints.length - 1];
     const dist = Math.hypot(coords.x - last.x, coords.y - last.y);
 
-    if (dist >= 12) {
+    if (dist >= 10) {
       s.rawDrawPoints.push(coords);
       const aero = computeAerodynamicTrajectory(s.rawDrawPoints);
       s.smoothDrawPoints = aero.points;
@@ -1515,7 +1521,7 @@ function FootballGameContent() {
     if (!s.isDrawing) return;
     s.isDrawing = false;
 
-    if (s.smoothDrawPoints.length < 5) {
+    if (s.smoothDrawPoints.length < 4) {
       s.rawDrawPoints = [];
       s.smoothDrawPoints = [];
       return;
@@ -1525,13 +1531,12 @@ function FootballGameContent() {
     const endPt = s.smoothDrawPoints[s.smoothDrawPoints.length - 1];
     const totalDist = Math.hypot(endPt.x - startPt.x, endPt.y - startPt.y);
 
-    if (totalDist < 55) {
+    if (totalDist < 50) {
       s.rawDrawPoints = [];
       s.smoothDrawPoints = [];
       return;
     }
 
-    // Calcul de la vitesse physique du tir basée sur la vivacité du geste
     const drawDuration = Math.max(0.12, (performance.now() - s.drawStartTime) / 1000);
     const swipeVelocity = (totalDist / drawDuration) * 0.12;
     const speed = Math.min(128, Math.max(74, Math.floor(72 + swipeVelocity + totalDist * 0.14)));
@@ -1539,19 +1544,18 @@ function FootballGameContent() {
 
     const isBullet = speed >= 100;
     s.isBulletShot = isBullet;
-    // Durée de vol réelle de la balle : plus le tir est rapide, plus la balle arrive vite
     const flightTime = Math.max(0.46, Math.min(0.72, 0.78 - (speed - 74) * 0.005));
     s.flightDuration = flightTime;
 
-    // Détermination de la zone
+    // Détermination de la zone (Cages de 120 à 420, hauteur 190 à 285)
     let placement = s.isDerived ? "Dérivation aérodynamique 🌪️" : "Frappe tendue";
-    if (endPt.x < 370 && endPt.y < 172) placement = s.isDerived ? "Lucarne Dérivée 🌪️" : "Pleine Lucarne Gauche 🎯";
-    else if (endPt.x > 590 && endPt.y < 172) placement = s.isDerived ? "Lucarne Dérivée 🌪️" : "Pleine Lucarne Droite 🎯";
-    else if (endPt.x < 370 && endPt.y >= 195) placement = "Petit filet gauche ⚡";
-    else if (endPt.x > 590 && endPt.y >= 195) placement = "Petit filet droit ⚡";
+    if (endPt.x < 190 && endPt.y < 225) placement = s.isDerived ? "Lucarne Dérivée 🌪️" : "Pleine Lucarne Gauche 🎯";
+    else if (endPt.x > 350 && endPt.y < 225) placement = s.isDerived ? "Lucarne Dérivée 🌪️" : "Pleine Lucarne Droite 🎯";
+    else if (endPt.x < 190 && endPt.y >= 255) placement = "Petit filet gauche ⚡";
+    else if (endPt.x > 350 && endPt.y >= 255) placement = "Petit filet droit ⚡";
     else if (isBullet) placement = "Missile plein centre 🚀";
-    else if (endPt.x < 370) placement = "Ras du poteau gauche";
-    else if (endPt.x > 590) placement = "Ras du poteau droit";
+    else if (endPt.x < 190) placement = "Ras du poteau gauche";
+    else if (endPt.x > 350) placement = "Ras du poteau droit";
     setLastShotPlacement(placement);
 
     // Déclenchement de la frappe
@@ -1563,24 +1567,16 @@ function FootballGameContent() {
     playFootballSound(isBullet ? "bullet" : "kick");
 
     // ================= SIMULATION PHYSIQUE AUTHENTIQUE DU GARDIEN =================
-    // Pas de script "si coin = but" !
-    // Le gardien a un temps de réaction humain (~0.16s), puis il plonge vers la cible.
-    // Sa vitesse de plongeon maximale est réaliste (~290 px/s).
-    // Si la balle arrive avant qu'il ne puisse atteindre les coordonnées avec ses gants -> BUT !
-    // Si le tir est trop mou, ou prévisible, ou central -> ARRET DU GARDIEN !
-    const reactionDelay = 160; // 0.16s
+    const reactionDelay = 160;
     const availableDiveTime = Math.max(0.1, flightTime - 0.16);
 
     const diveDir = endPt.x >= s.gkBaseX ? 1 : -1;
-    const isHigh = endPt.y < 185;
+    const isHigh = endPt.y < 235;
 
-    // Distance horizontale que le gardien doit couvrir
     const distanceNeeded = Math.abs(endPt.x - s.gkBaseX);
-    // Vitesse de déplacement du gardien en vol (en px/s)
-    const keeperAgility = 285; // Agilité réaliste
+    const keeperAgility = 270;
     const maxDistanceCovered = keeperAgility * availableDiveTime;
 
-    // Destination physique où le gardien peut réellement arriver au maximum de son extension
     const actualCovered = Math.min(distanceNeeded, maxDistanceCovered);
     const actualTargetX = s.gkBaseX + diveDir * actualCovered;
 
@@ -1593,7 +1589,7 @@ function FootballGameContent() {
       s.gkDiveDir = diveDir;
 
       s.gkTargetX = actualTargetX;
-      s.gkTargetY = Math.max(150, Math.min(218, endPt.y));
+      s.gkTargetY = Math.max(200, Math.min(280, endPt.y));
     }, reactionDelay);
   };
 
@@ -1635,21 +1631,21 @@ function FootballGameContent() {
         </div>
       </div>
 
-      {/* BARRE D'INSTRUCTIONS MINIMALISTE & PRO */}
+      {/* BARRE D'INSTRUCTIONS */}
       <div className={styles["instruction-bar"]}>
         <div className={styles["instruction-text"]}>
           <span>👆</span>
-          <span>Trace la trajectoire au doigt ou à la souris pour enrouler ou fusiller le gardien !</span>
+          <span>Trace la flèche vers la cage pour tirer ou enrouler !</span>
         </div>
-        <span className={styles["hint-chip"]}>Physique Score! Hero 🎯</span>
+        <span className={styles["hint-chip"]}>Score! Hero 🎯</span>
       </div>
 
-      {/* ARENA CANVAS DESIGN REALISTE */}
+      {/* ARENA CANVAS PORTRAIT */}
       <div ref={canvasCardRef} className={styles["canvas-card"]}>
         <canvas
           ref={canvasRef}
-          width={960}
-          height={540}
+          width={540}
+          height={800}
           className={styles["canvas-viewport"]}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -1676,6 +1672,10 @@ function FootballGameContent() {
               <button
                 className={`${styles["btn-action"]} ${styles["btn-action-primary"]}`}
                 onClick={resetShot}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  resetShot();
+                }}
                 id="btn-football-retry-goal"
               >
                 ⚽ Tirer à nouveau
@@ -1702,6 +1702,10 @@ function FootballGameContent() {
               <button
                 className={`${styles["btn-action"]} ${styles["btn-action-primary"]}`}
                 onClick={resetShot}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  resetShot();
+                }}
                 id="btn-football-retry-saved"
               >
                 🔄 Réessayer
@@ -1728,6 +1732,10 @@ function FootballGameContent() {
               <button
                 className={`${styles["btn-action"]} ${styles["btn-action-primary"]}`}
                 onClick={resetShot}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  resetShot();
+                }}
                 id="btn-football-retry-post"
               >
                 🔄 Réessayer
@@ -1750,6 +1758,10 @@ function FootballGameContent() {
               <button
                 className={`${styles["btn-action"]} ${styles["btn-action-primary"]}`}
                 onClick={resetShot}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  resetShot();
+                }}
                 id="btn-football-retry-miss"
               >
                 🔄 Tirer à nouveau
@@ -1764,6 +1776,10 @@ function FootballGameContent() {
         <button
           className={styles["btn-action"]}
           onClick={resetShot}
+          onTouchEnd={(e) => {
+            e.stopPropagation();
+            resetShot();
+          }}
           id="btn-football-reset"
         >
           🔄 Recommencer
