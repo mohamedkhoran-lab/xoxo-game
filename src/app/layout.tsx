@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,6 +10,15 @@ export const metadata: Metadata = {
     description: "Essaie de battre la machine si tu oses !",
     type: "website",
   },
+};
+
+// Games site: lock the zoom so taps on boards/canvases never zoom the page on phones
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

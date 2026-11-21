@@ -32,6 +32,22 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  /* No double-tap zoom anywhere on the site (iOS ignores user-scalable=no) */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Full-screen canvas games hide the site chrome behind them */
+html.game-locked .site-footer,
+html.game-locked .bg-blob {
+  display: none;
+}
+
+button, a, [role="gridcell"], canvas {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {

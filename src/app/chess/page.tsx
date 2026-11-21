@@ -1,399 +1,266 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useCallback, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import {
-  ChessBoard,
   ChessMove,
+  ChessPiece,
+  ChessState,
   PieceColor,
-  createInitialChessBoard,
-  cloneChessBoard,
-  getLegalMovesForPiece,
-  getAllChessMoves,
-  applyChessMove,
-  getBestChessMove,
+  PieceType,
+  Square,
+  createInitialState,
+  getLegalMoves,
+  applyMove,
+  getBestMove,
+  getGameStatus,
+  findKing,
   CHESS_SYMBOLS,
 } from "../lib/chessEngine";
 import styles from "./chess.module.css";
 
-// ========================
-// Types
-// ========================
-interface HistoryState {
-  board: ChessBoard;
-  currentTurn: PieceColor;
-  winner: PieceColor | null;
-  lastMove: { from: [number, number]; to: [number, number] } | null;
+interface Snapshot {
+  state: ChessState;
+  lastMove: { from: Square; to: Square } | null;
+  captured: ChessPiece[];
 }
 
-// ========================
-// Confetti Component
-// ========================
-function Confetti() {
-  const pieces = Array.from({ length: 45 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    color: ["#6c63ff", "#fd79a8", "#00cec9", "#f9ca24", "#a29bfe", "#ff6b6b"][
-      Math.floor(Math.random() * 6)
-    ],
-    delay: Math.random() * 2,
-    size: 8 + Math.random() * 10,
-    shape: Math.random() > 0.5 ? "50%" : "2px",
-  }));
+const FILES = "abcdefgh";
 
+function Confetti() {
+  const [pieces] = useState(() =>
+    Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 95,
+      color: ["#6c63ff", "#fd79a8", "#00cec9", "#f9ca24", "#a29bfe", "#ff6b6b"][i % 6],
+      delay: Math.random() * 2,
+      size: 8 + Math.random() * 8,
+      round: Math.random() > 0.5,
+    }))
+  );
   return (
-    <>
+    <div className={styles.confettiLayer}>
       {pieces.map((p) => (
         <div
           key={p.id}
           style={{
-            position: "fixed",
+            position: "absolute",
             left: `${p.left}%`,
-            top: "-10px",
+            top: "-12px",
             background: p.color,
             width: p.size,
             height: p.size,
-            borderRadius: p.shape,
-            animation: `confettiFall 3s ease-in forwards`,
+            borderRadius: p.round ? "50%" : "2px",
+            animation: "confettiFall 3s ease-in forwards",
             animationDelay: `${p.delay}s`,
-            pointerEvents: "none",
-            zIndex: 999,
           }}
         />
       ))}
-    </>
+    </div>
   );
 }
 
-// ========================
-// Chess Game Content
-// ========================
 function ChessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode") || "vs-machine";
+  const vsAI = mode === "vs-machine";
 
-  const [board, setBoard] = useState<ChessBoard>(createInitialChessBoard);
-  const [currentTurn, setCurrentTurn] = useState<PieceColor>("white");
-  const [selectedPiece, setSelectedPiece] = useState<[number, number] | null>(null);
+  const [game, setGame] = useState<ChessState>(createInitialState);
+  const [selected, setSelected] = useState<Square | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+  const [captured, setCaptured] = useState<ChessPiece[]>([]);
+  const [history, setHistory] = useState<Snapshot[]>([]);
+  const [promo, setPromo] = useState<ChessMove[] | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [winner, setWinner] = useState<PieceColor | null>(null);
-  const [lastMove, setLastMove] = useState<{ from: [number, number]; to: [number, number] } | null>(null);
-  const [history, setHistory] = useState<HistoryState[]>([]);
 
-  // Count active pieces
-  const pieceCounts = useMemo(() => {
-    let white = 0;
-    let black = 0;
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const piece = board[r][c];
-        if (piece?.color === "white") white++;
-        if (piece?.color === "black") black++;
-      }
-    }
-    return { white, black };
-  }, [board]);
+  const status = useMemo(() => getGameStatus(game), [game]);
+  const isOver = status.kind !== "playing";
+  const inCheck = status.kind === "playing" && status.check;
+  const kingInDanger = inCheck || status.kind === "checkmate" ? findKing(game.board, game.turn) : null;
 
-  // Available moves for currently selected square
   const availableMoves = useMemo(() => {
-    if (!selectedPiece || winner) return [];
-    const [r, c] = selectedPiece;
-    return getLegalMovesForPiece(board, r, c);
-  }, [selectedPiece, board, winner]);
+    if (!selected || isOver) return [];
+    return getLegalMoves(game, selected[0], selected[1]);
+  }, [selected, game, isOver]);
 
-  // AI Turn (Amine - Black pieces)
+  // Lock browser gestures (pinch / double-tap zoom, rubber-band scroll) while playing
   useEffect(() => {
-    if (mode !== "vs-machine" || currentTurn !== "black" || winner) return;
+    const prev = document.body.style.overscrollBehavior;
+    document.body.style.overscrollBehavior = "none";
+    const stopGesture = (e: Event) => e.preventDefault();
+    document.addEventListener("gesturestart", stopGesture);
+    document.addEventListener("dblclick", stopGesture);
+    return () => {
+      document.body.style.overscrollBehavior = prev;
+      document.removeEventListener("gesturestart", stopGesture);
+      document.removeEventListener("dblclick", stopGesture);
+    };
+  }, []);
 
-    setIsAiThinking(true);
-    const delay = 650 + Math.random() * 300;
-
-    const timer = setTimeout(() => {
-      const bestMove = getBestChessMove(board, "black", 3);
-      if (!bestMove) {
-        // AI has no moves, White wins
-        setWinner("white");
-        setIsAiThinking(false);
-        return;
-      }
-
-      // Snapshot history before AI move
-      setHistory((prev) => [
-        ...prev,
-        {
-          board: cloneChessBoard(board),
-          currentTurn: "black",
-          winner: null,
-          lastMove,
-        },
-      ]);
-
-      const nextBoard = applyChessMove(board, bestMove);
-      setBoard(nextBoard);
-      setLastMove({ from: bestMove.from, to: bestMove.to });
-      setIsAiThinking(false);
-
-      // Check if White King captured
-      let whiteKingAlive = false;
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-          if (nextBoard[r][c]?.type === "K" && nextBoard[r][c]?.color === "white") {
-            whiteKingAlive = true;
-          }
-        }
-      }
-
-      if (!whiteKingAlive) {
-        setWinner("black");
-      } else if (getAllChessMoves(nextBoard, "white").length === 0) {
-        setWinner("black");
-      } else {
-        setCurrentTurn("white");
-      }
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [mode, currentTurn, winner, board, lastMove]);
-
-  // Handle Square Click
-  const handleSquareClick = (r: number, c: number) => {
-    if (winner || (mode === "vs-machine" && (isAiThinking || currentTurn === "black"))) {
-      return;
-    }
-
-    const clickedPiece = board[r][c];
-
-    // Selecting own piece
-    if (clickedPiece && clickedPiece.color === currentTurn) {
-      setSelectedPiece([r, c]);
-      return;
-    }
-
-    // Making move if piece is already selected
-    if (selectedPiece) {
-      const validMove = availableMoves.find((m) => m.to[0] === r && m.to[1] === c);
-      if (validMove) {
-        executeMove(validMove);
-      } else if (!clickedPiece) {
-        setSelectedPiece(null);
-      }
-    }
-  };
-
-  // Execute Human Move
-  const executeMove = (move: ChessMove) => {
-    // Save history
-    setHistory((prev) => [
-      ...prev,
-      {
-        board: cloneChessBoard(board),
-        currentTurn,
-        winner,
-        lastMove,
-      },
-    ]);
-
-    const nextBoard = applyChessMove(board, move);
-    setBoard(nextBoard);
+  const commitMove = (move: ChessMove) => {
+    setHistory((h) => [...h, { state: game, lastMove, captured }]);
+    if (move.captured) setCaptured((c) => [...c, move.captured!]);
+    setGame(applyMove(game, move));
     setLastMove({ from: move.from, to: move.to });
-    setSelectedPiece(null);
-
-    // Check if Black King was captured
-    let blackKingAlive = false;
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        if (nextBoard[r][c]?.type === "K" && nextBoard[r][c]?.color === "black") {
-          blackKingAlive = true;
-        }
-      }
-    }
-
-    const nextTurn: PieceColor = currentTurn === "white" ? "black" : "white";
-
-    if (!blackKingAlive) {
-      setWinner("white");
-      return;
-    }
-
-    if (getAllChessMoves(nextBoard, nextTurn).length === 0) {
-      setWinner(currentTurn);
-      return;
-    }
-
-    setCurrentTurn(nextTurn);
+    setSelected(null);
+    setPromo(null);
   };
 
-  // Undo (Revenir en arrière)
+  // AI turn (Amine plays black)
+  const aiTurn = vsAI && game.turn === "black" && !isOver;
+  useEffect(() => {
+    if (!aiTurn) return;
+    const think = setTimeout(() => setIsAiThinking(true), 0);
+    const timer = setTimeout(() => {
+      const move = getBestMove(game, 3);
+      setIsAiThinking(false);
+      if (move) commitMove(move);
+    }, 450 + Math.random() * 300);
+    return () => {
+      clearTimeout(think);
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiTurn, game]);
+
+  const handleSquareClick = (r: number, c: number) => {
+    if (isOver || promo || (vsAI && game.turn === "black")) return;
+    const piece = game.board[r][c];
+
+    if (selected && selected[0] === r && selected[1] === c) {
+      setSelected(null);
+      return;
+    }
+    if (piece && piece.color === game.turn) {
+      setSelected([r, c]);
+      return;
+    }
+    if (selected) {
+      const options = availableMoves.filter((m) => m.to[0] === r && m.to[1] === c);
+      if (options.length > 1 && options[0].promotion) setPromo(options);
+      else if (options.length === 1) commitMove(options[0]);
+      else setSelected(null);
+    }
+  };
+
   const handleUndo = () => {
     if (history.length === 0 || isAiThinking) return;
-
-    if (mode === "vs-machine") {
-      // Revert back to the snapshot where it was White's turn
-      let targetIdx = -1;
-      for (let i = history.length - 1; i >= 0; i--) {
-        if (history[i].currentTurn === "white") {
-          targetIdx = i;
-          break;
-        }
-      }
-
-      if (targetIdx !== -1) {
-        const target = history[targetIdx];
-        setBoard(target.board);
-        setCurrentTurn("white");
-        setWinner(null);
-        setLastMove(target.lastMove);
-        setSelectedPiece(null);
-        setHistory((prev) => prev.slice(0, targetIdx));
-      } else {
-        handleRestart();
-      }
-    } else {
-      const last = history[history.length - 1];
-      setBoard(last.board);
-      setCurrentTurn(last.currentTurn);
-      setWinner(last.winner);
-      setLastMove(last.lastMove);
-      setSelectedPiece(null);
-      setHistory((prev) => prev.slice(0, -1));
-    }
+    // vs AI: go back to the last position where it was the human's turn
+    let idx = history.length - 1;
+    if (vsAI) while (idx > 0 && history[idx].state.turn !== "white") idx--;
+    const snap = history[idx];
+    setGame(snap.state);
+    setLastMove(snap.lastMove);
+    setCaptured(snap.captured);
+    setHistory(history.slice(0, idx));
+    setSelected(null);
+    setPromo(null);
   };
 
-  // Restart Game
   const handleRestart = () => {
-    setBoard(createInitialChessBoard());
-    setCurrentTurn("white");
-    setSelectedPiece(null);
-    setIsAiThinking(false);
-    setWinner(null);
+    setGame(createInitialState());
+    setSelected(null);
     setLastMove(null);
+    setCaptured([]);
     setHistory([]);
+    setPromo(null);
+    setIsAiThinking(false);
   };
+
+  const nameOf = (color: PieceColor) =>
+    vsAI ? (color === "white" ? "Nta" : "Amine") : color === "white" ? "Joueur 1" : "Joueur 2";
+
+  let banner: React.ReactNode;
+  let bannerClass = "";
+  if (status.kind === "checkmate") {
+    banner = <>♛ Échec et mat ! Rbe7 <strong>{nameOf(status.winner)}</strong> 🎉</>;
+    bannerClass = status.winner === "white" ? styles["win-white"] : styles["win-black"];
+  } else if (status.kind === "stalemate") {
+    banner = <>🤝 Pat — match nul (ma kayen hata coup)</>;
+  } else if (status.kind === "draw") {
+    banner = <>🤝 Match nul {status.reason === "material" ? "(pièces insuffisantes)" : "(règle des 50 coups)"}</>;
+  } else if (isAiThinking) {
+    banner = <>Amine ykhamem... 🤔</>;
+  } else if (inCheck) {
+    banner = <>⚠️ Échec ! <strong>{nameOf(game.turn)}</strong>, sauvi l malik 👑</>;
+    bannerClass = styles["banner-check"];
+  } else {
+    banner = <>Dorek : <strong>{nameOf(game.turn)}</strong> ({game.turn === "white" ? "Violet" : "Rose"})</>;
+  }
+
+  const capturedBy = (color: PieceColor) => captured.filter((p) => p.color !== color);
 
   return (
     <main className={styles["chess-page"]}>
-      {winner && <Confetti />}
+      {(status.kind === "checkmate" && (!vsAI || status.winner === "white")) && <Confetti />}
 
-      {/* Header */}
       <div className={styles["chess-header"]}>
-        <button
-          className={`${styles["back-link"]} btn-ghost`}
-          onClick={() => router.push("/?select=1")}
-          id="btn-chess-back"
-        >
+        <button className={`${styles["back-link"]} btn-ghost`} onClick={() => router.push("/?select=1")} id="btn-chess-back">
           ← Rja3
         </button>
         <div className={styles["chess-logo"]}>
           <span className="gradient-text">Chess</span>
         </div>
-        <div className={styles["mode-badge"]}>
-          <span>{mode === "vs-machine" ? "vs Amine" : "vs Sahbi"}</span>
-        </div>
+        <div className={styles["mode-badge"]}>{vsAI ? "vs Amine" : "vs Sahbi"}</div>
       </div>
 
-      {/* Scoreboard */}
       <div className={styles.scoreboard}>
-        <div
-          className={`${styles["player-card"]} ${
-            currentTurn === "white" && !winner ? styles["active-white"] : ""
-          }`}
-        >
-          <span className={styles["player-name"]}>
-            <span className={`${styles["player-dot"]} ${styles["dot-white"]}`} />
-            {mode === "vs-machine" ? "Nta" : "Joueur 1"}
-          </span>
-          <span className={styles["player-pieces"]}>{pieceCounts.white} pièces</span>
-        </div>
-
-        <div className={styles["vs-divider"]}>VS</div>
-
-        <div
-          className={`${styles["player-card"]} ${
-            currentTurn === "black" && !winner ? styles["active-black"] : ""
-          }`}
-        >
-          <span className={styles["player-name"]}>
-            <span className={`${styles["player-dot"]} ${styles["dot-black"]}`} />
-            {mode === "vs-machine" ? "Amine" : "Joueur 2"}
-          </span>
-          <span className={styles["player-pieces"]}>{pieceCounts.black} pièces</span>
-        </div>
-      </div>
-
-      {/* Status Banner */}
-      <div
-        className={`${styles["status-banner"]} ${
-          winner === "white"
-            ? styles["win-white"]
-            : winner === "black"
-            ? styles["win-black"]
-            : ""
-        }`}
-      >
-        {winner ? (
-          <span>
-            🎉 {mode === "vs-machine" ? (winner === "white" ? "Victoire de Nta !" : "Victoire d'Amine !") : `Victoire du Joueur ${winner === "white" ? "1" : "2"} !`}
-          </span>
-        ) : isAiThinking ? (
-          <div className="thinking-indicator" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span>Amine réfléchit...</span>
+        {(["white", "black"] as PieceColor[]).map((color, i) => (
+          <div key={color} style={{ display: "contents" }}>
+            {i === 1 && <div className={styles["vs-divider"]}>VS</div>}
+            <div className={`${styles["player-card"]} ${game.turn === color && !isOver ? styles[color === "white" ? "active-white" : "active-black"] : ""}`}>
+              <span className={styles["player-name"]}>
+                <span className={`${styles["player-dot"]} ${styles[color === "white" ? "dot-white" : "dot-black"]}`} />
+                {nameOf(color)}
+              </span>
+              <span className={styles["captured-row"]}>
+                {capturedBy(color).length === 0
+                  ? "—"
+                  : capturedBy(color).map((p, k) => (
+                      <span key={k} className={p.color === "white" ? styles["cap-white"] : styles["cap-black"]}>
+                        {CHESS_SYMBOLS[p.color][p.type]}
+                      </span>
+                    ))}
+              </span>
+            </div>
           </div>
-        ) : (
-          <span>
-            Tour :{" "}
-            <strong>
-              {mode === "vs-machine"
-                ? currentTurn === "white"
-                  ? "Nta (Blanc/Violet)"
-                  : "Amine (Noir/Rose)"
-                : currentTurn === "white"
-                ? "Joueur 1 (Blanc/Violet)"
-                : "Joueur 2 (Noir/Rose)"}
-            </strong>
-          </span>
-        )}
+        ))}
       </div>
 
-      {/* Board */}
+      <div className={`${styles["status-banner"]} ${bannerClass}`}>{banner}</div>
+
       <div className={styles["board-wrapper"]}>
         <div className={styles["chess-board"]} role="grid" aria-label="Échiquier">
-          {board.map((row, r) =>
+          {game.board.map((row, r) =>
             row.map((piece, c) => {
               const isDark = (r + c) % 2 === 1;
-              const isSelected = selectedPiece?.[0] === r && selectedPiece?.[1] === c;
-              const isLastMove =
+              const isSelected = selected?.[0] === r && selected?.[1] === c;
+              const isLast =
                 (lastMove?.from[0] === r && lastMove?.from[1] === c) ||
                 (lastMove?.to[0] === r && lastMove?.to[1] === c);
-              const targetMove = availableMoves.find(
-                (m) => m.to[0] === r && m.to[1] === c
-              );
+              const target = availableMoves.find((m) => m.to[0] === r && m.to[1] === c);
+              const isKingDanger = kingInDanger?.[0] === r && kingInDanger?.[1] === c;
 
               return (
                 <div
                   key={`${r}-${c}`}
-                  id={`square-${r}-${c}`}
                   role="gridcell"
                   className={[
                     styles.square,
                     isDark ? styles["square-dark"] : styles["square-light"],
+                    isLast ? styles["square-last-move"] : "",
                     isSelected ? styles["square-selected"] : "",
-                    isLastMove ? styles["square-last-move"] : "",
-                    targetMove ? styles["square-valid-target"] : "",
+                    isKingDanger ? styles["square-check"] : "",
+                    target ? styles["square-valid-target"] : "",
                   ].join(" ")}
                   onClick={() => handleSquareClick(r, c)}
                 >
-                  {/* Hint dot for valid destination */}
-                  {targetMove && (
-                    <div
-                      className={[
-                        styles["target-dot"],
-                        targetMove.captured ? styles["target-dot-capture"] : "",
-                      ].join(" ")}
-                    />
+                  {c === 0 && <span className={`${styles.coord} ${styles["coord-rank"]}`}>{8 - r}</span>}
+                  {r === 7 && <span className={`${styles.coord} ${styles["coord-file"]}`}>{FILES[c]}</span>}
+                  {target && (
+                    <div className={target.captured ? styles["target-ring"] : styles["target-dot"]} />
                   )}
-
-                  {/* Piece */}
                   {piece && (
                     <span
                       className={[
@@ -409,35 +276,53 @@ function ChessContent() {
               );
             })
           )}
+
+          {promo && (
+            <div className={styles["promo-overlay"]}>
+              <div className={styles["promo-box"]}>
+                <span className={styles["promo-title"]}>Khayar l pièce 👇</span>
+                <div className={styles["promo-choices"]}>
+                  {(["Q", "R", "B", "N"] as PieceType[]).map((t) => {
+                    const m = promo.find((x) => x.promotion === t)!;
+                    return (
+                      <button key={t} className={styles["promo-btn"]} onClick={() => commitMove(m)}>
+                        <span className={game.turn === "white" ? styles["piece-white"] : styles["piece-black"]}>
+                          {CHESS_SYMBOLS[game.turn][t]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button className={styles["promo-cancel"]} onClick={() => setPromo(null)}>Annuler</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Action Buttons */}
+      <p className={styles.tip}>
+        💡 Roque : clique 3la l malik, w ghadi tchouf deux cases (côté court / côté long) ki tkoun mumkin.
+      </p>
+
       <div className={styles["chess-actions"]}>
         <div className={styles["action-row"]}>
           <button
-            id="btn-undo-move"
             className={`${styles["action-btn"]} ${styles["btn-undo"]}`}
             onClick={handleUndo}
-            disabled={history.length === 0 || !!winner || isAiThinking}
+            disabled={history.length === 0 || isAiThinking}
           >
-            ↩ Revenir en arrière
+            ↩ Rja3 coup
           </button>
-          <button
-            id="btn-restart-chess"
-            className={`${styles["action-btn"]} ${styles["btn-replay"]}`}
-            onClick={handleRestart}
-          >
-            🔄 Recommencer
+          <button className={`${styles["action-btn"]} ${styles["btn-replay"]}`} onClick={handleRestart}>
+            🔄 3awed
           </button>
         </div>
         <button
-          id="btn-menu-chess"
           className="btn-secondary"
           style={{ width: "100%", justifyContent: "center" }}
           onClick={() => router.push("/?select=1")}
         >
-          🏠 Commencer (Changer de jeu)
+          🏠 Bdel l jeu
         </button>
       </div>
     </main>
@@ -446,21 +331,7 @@ function ChessContent() {
 
 export default function ChessPage() {
   return (
-    <Suspense
-      fallback={
-        <div
-          className="page-wrapper"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-          }}
-        >
-          <div style={{ fontSize: "3rem" }}>⏳</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontSize: "3rem" }}>⏳</div>}>
       <ChessContent />
     </Suspense>
   );

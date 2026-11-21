@@ -167,6 +167,11 @@
   max-width: 460px;
 }
 
+/* Hard mode: 14 tubes in two neat rows of 7 */
+.tubes-hard {
+  max-width: 340px;
+}
+
 /* Individual Glass Tube Flask */
 .tube {
   position: relative;
@@ -367,6 +372,9 @@
   }
   .tubes-container {
     gap: 12px 6px;
+  }
+  .tubes-hard {
+    max-width: 270px;
   }
   .arena-card {
     padding: 1.4rem 0.5rem 1rem;

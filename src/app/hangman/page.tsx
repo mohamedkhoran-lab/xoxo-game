@@ -1,1768 +1,958 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { LEVELS, Level } from "./levels";
+import { tone, noise, unlockAudio, setMuted } from "../lib/sfx";
+import { useStored } from "../lib/useStored";
 import styles from "./hangman.module.css";
-import {
-  ARCHERY_STAGES,
-  type DifficultyConfig,
-  type HangmanStageConfig,
-  type Obstacle,
-} from "./stages-data";
 
-// Synthétiseur audio Web Audio API
-function playArcherySound(type: "draw" | "shoot" | "cut" | "hitMan" | "thud" | "win" | "lose") {
-  try {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+// ================= CONSTANTS =================
+const WORLD_H = 600;
+const GROUND = 0.9 * WORLD_H;
+const GRAVITY = 820;
+const MIN_SPEED = 260;
+const MAX_SPEED = 1080;
+const ARROW_LEN = 36;
+const SHOT_COOLDOWN = 0.35;
 
-    if (type === "draw") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(140, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(260, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.12);
-    } else if (type === "shoot") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(680, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.28, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    } else if (type === "cut") {
-      [880, 1174, 1760].forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.05);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.05 + 0.25);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + i * 0.05);
-        osc.stop(ctx.currentTime + i * 0.05 + 0.25);
-      });
-    } else if (type === "hitMan") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(240, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(75, ctx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.26, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.2);
-    } else if (type === "thud") {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(120, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.1);
-    } else if (type === "win") {
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(f, ctx.currentTime + i * 0.09);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.09);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.09 + 0.35);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + i * 0.09);
-        osc.stop(ctx.currentTime + i * 0.09 + 0.35);
-      });
-    } else if (type === "lose") {
-      [349.23, 293.66, 246.94, 175.0].forEach((f, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(f, ctx.currentTime + i * 0.12);
-        gain.gain.setValueAtTime(0.22, ctx.currentTime + i * 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.28);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + i * 0.12);
-        osc.stop(ctx.currentTime + i * 0.12 + 0.28);
-      });
-    }
-  } catch {}
-}
+const BODY_LINES = ["ayy! a viser mlih 😫", "marakch tchouf ??", "kamal 3liya khir…", "rani nmout hna 😵"];
+const SAVED_LINES = ["Ya3tik saha! 🙏", "Sauvitni khoya!", "Nta l'héros ❤️", "Merci bezzaf!"];
 
-const GRAVITY = 720;
-const MAX_PULL = 90;
-const POWER_MULT = 9.8;
-
-// Les 3 phrases exactes demandées lors d'une touche sur le corps (un après un) :
-const COMPLAINT_MESSAGES = [
-  "ayy a viser mlih",
-  "marakche tchouf ??",
-  "kamal 3liya khir",
-];
-
+// ================= TYPES =================
 interface Arrow {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  angle: number;
-  inFlight: boolean;
-  stuck: boolean;
-  stuckOnMan?: boolean;
-  offsetFromManX?: number;
-  offsetFromManY?: number;
-  stuckObstacleIndex?: number;
-  stuckType?: "rect" | "rotating";
-  offsetObsX?: number;
-  offsetObsY?: number;
-  rotRadius?: number;
-  rotAngleOffset?: number;
-  initialArrowAngle?: number;
+  x: number; y: number; vx: number; vy: number; angle: number;
+  state: "fly" | "stuck" | "gone";
+  /** stuck on hostage i (local coords along body) or obstacle j */
+  onHostage?: number; onObstacle?: number;
+  lx?: number; ly?: number; la?: number;
 }
 
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  size: number;
-  alpha: number;
-  life: number;
+interface HostageState {
+  cut: boolean;
+  dead: boolean;
+  breath: number;
+  phase: number;
+  /** falling / landed after cut */
+  fx: number; fy: number; fvy: number; landed: boolean;
+  speech: string; speechT: number;
+  shake: number;
+  hits: number;
 }
 
-function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
+interface Particle { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number }
+
+type Phase = "menu" | "intro" | "play" | "won" | "lost";
+
+interface Progress { unlocked: number; stars: number[] }
+
+// ================= GEOMETRY HELPERS =================
+function distToSeg(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
   const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
-  if (l2 === 0) return Math.hypot(px - x1, py - y1);
-  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+  let t = l2 === 0 ? 0 : ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
   t = Math.max(0, Math.min(1, t));
   return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
 }
 
-function HangmanArcheryContent() {
+/** Pendulum geometry of hostage i at time t (world units). */
+function hostageGeom(lv: Level, i: number, hs: HostageState, W: number, t: number) {
+  const h = lv.hostages[i];
+  const px = h.x * W;
+  const py = h.y * WORLD_H;
+  if (hs.cut) {
+    // Upright, falling or standing on the ground
+    const nx = hs.fx, ny = hs.fy;
+    return { px, py, a: 0, nx, ny, dx: 0, dy: 1 };
+  }
+  const a = (h.swing ?? 0) * Math.sin(t * (h.swingSpeed ?? 0) + hs.phase) + (hs.shake > 0 ? Math.sin(t * 60) * 0.05 * hs.shake : 0);
+  const dx = Math.sin(a), dy = Math.cos(a);
+  return { px, py, a, nx: px + dx * h.rope, ny: py + dy * h.rope, dx, dy };
+}
+
+function obstacleGeom(o: Level["obstacles"][number], W: number, t: number) {
+  let cx = o.x * W, cy = o.y * WORLD_H;
+  if (o.move === "y") cy += Math.sin(t * (o.speed ?? 1)) * (o.amp ?? 0) * WORLD_H;
+  if (o.move === "x") cx += Math.sin(t * (o.speed ?? 1)) * (o.amp ?? 0) * W;
+  const ang = o.kind === "blade" ? t * (o.spin ?? 0) : 0;
+  return { cx, cy, ang };
+}
+
+/** Gallows post sits right of the rope, or left if it would leave the screen. */
+function postXOf(px: number, W: number) {
+  return px + 46 <= W - 12 ? px + 46 : px - 46;
+}
+
+/** Rotate a vector by angle th. */
+function rot(x: number, y: number, th: number) {
+  const c = Math.cos(th), s = Math.sin(th);
+  return [x * c - y * s, x * s + y * c] as const;
+}
+
+function bowPos(W: number) {
+  return { x: Math.max(48, 0.09 * W), y: GROUND - 78 };
+}
+
+// ================= COMPONENT =================
+export default function HangmanPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const diffParam = searchParams.get("diff");
-
-  const [difficulty, setDifficulty] = useState<"facile" | "moyen" | "hard">(() => {
-    if (diffParam === "hard") return "hard";
-    if (diffParam === "moyen") return "moyen";
-    return "facile";
-  });
-
-  const [stageIndex, setStageIndex] = useState(0);
-
-  // Progression séquentielle : Niveaux débloqués un par un (1 -> 2 -> 3 -> 4 -> 5)
-  const [unlockedLevels, setUnlockedLevels] = useState<Record<"facile" | "moyen" | "hard", number>>({
-    facile: 0,
-    moyen: 0,
-    hard: 0,
-  });
-
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const canvasCardRef = useRef<HTMLDivElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  // Zoom adaptatif pour smartphone : 1.0 par défaut pour voir tout le terrain sans couper l'archer
-  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
-  const zoomLevelRef = useRef(zoomLevel);
-  zoomLevelRef.current = zoomLevel;
+  const [progress, setProgress] = useStored<Progress>("xoxo-hangman-v2", { unlocked: 0, stars: [] });
+  const [muted, setMutedState] = useStored<boolean>("xoxo-hangman-muted", false);
 
-  const currentDiffData: DifficultyConfig = ARCHERY_STAGES[difficulty];
-  const stageConfig: HangmanStageConfig = currentDiffData.stages[stageIndex];
+  const [phase, setPhase] = useState<Phase>("menu");
+  const [levelIdx, setLevelIdx] = useState(0);
+  const [arrowsLeft, setArrowsLeft] = useState(0);
+  const [result, setResult] = useState<{ stars: number; reason?: string }>({ stars: 0 });
 
-  const [arrowsLeft, setArrowsLeft] = useState(stageConfig.arrowsAvailable);
-  const [gameStatus, setGameStatus] = useState<"aiming" | "flying" | "won" | "lost">("aiming");
-  const [lossReason, setLossReason] = useState<"head" | "body" | "arrows">("arrows");
-
-  // État physique et d'animation
-  const stateRef = useRef({
-    bowX: 120,
-    bowY: 385,
-    isDragging: false,
-    dragCurrentX: 120,
-    dragCurrentY: 385,
+  // Mutable game state for the render loop (never read during render)
+  const g = useRef({
+    W: 960,
+    scale: 1,
+    dpr: 1,
+    t: 0,
+    level: LEVELS[0],
+    levelIdx: 0,
+    phase: "menu" as Phase,
     arrows: [] as Arrow[],
-    activeArrow: null as Arrow | null,
-    manX: stageConfig.gallowsX,
-    manY: stageConfig.gallowsY + stageConfig.ropeLength + 45,
-    manState: "hanging" as "hanging" | "falling" | "saved" | "dead",
-    manVy: 0,
-    ropeCut: false,
+    arrowsLeft: 0,
+    shotsFired: 0,
+    hostages: [] as HostageState[],
     particles: [] as Particle[],
-    obstacles: [] as Obstacle[],
-    time: 0,
-    clouds: [
-      { x: 50, y: 55, speed: 12, scale: 0.95 },
-      { x: 300, y: 85, speed: 8, scale: 1.2 },
-      { x: 600, y: 45, speed: 10, scale: 0.85 },
-      { x: 840, y: 70, speed: 14, scale: 1.1 },
-    ],
-    manHitsCount: 0,
-    arrowsRemaining: stageConfig.arrowsAvailable,
-    status: "aiming" as "aiming" | "flying" | "won" | "lost",
-    speechText: "",
-    speechTimer: 0,
-    complaintCycle: 0,
-    deathReason: null as "head" | "body" | "arrows" | null,
+    aiming: false,
+    aimStart: { x: 0, y: 0 },
+    aimCur: { x: 0, y: 0 },
+    pointerId: -1,
+    cooldown: 0,
+    endTimer: -1,
+    pendingResult: null as null | { win: boolean; reason?: string },
   });
 
-  // Initialisation du niveau
-  const initStage = useCallback(
-    (newDiff: "facile" | "moyen" | "hard", newStageIdx: number) => {
-      const cfg = ARCHERY_STAGES[newDiff].stages[newStageIdx];
-      setDifficulty(newDiff);
-      setStageIndex(newStageIdx);
-      setArrowsLeft(cfg.arrowsAvailable);
-      setGameStatus("aiming");
-      setLossReason("arrows");
-
-      const s = stateRef.current;
-      s.manX = cfg.gallowsX;
-      s.manY = cfg.gallowsY + cfg.ropeLength + 45;
-      s.manState = "hanging";
-      s.manVy = 0;
-      s.ropeCut = false;
-      s.arrows = [];
-      s.activeArrow = null;
-      s.particles = [];
-      s.obstacles = JSON.parse(JSON.stringify(cfg.obstacles));
-      s.isDragging = false;
-      s.dragCurrentX = s.bowX;
-      s.dragCurrentY = s.bowY;
-      s.manHitsCount = 0;
-      s.arrowsRemaining = cfg.arrowsAvailable;
-      s.status = "aiming";
-      s.complaintCycle = 0;
-      s.deathReason = null;
-
-      // DEMANDE : "viser mlihh khoyaa" dure JUSTE 4s et UNIQUEMENT dans la 1ère partie de chaque niveau (newStageIdx === 0)
-      if (newStageIdx === 0) {
-        s.speechText = "viser mlihh khoyaa";
-        s.speechTimer = 4.0; // Exactement 4 secondes !
-      } else {
-        s.speechText = "";
-        s.speechTimer = 0;
-      }
-    },
-    []
-  );
-
   useEffect(() => {
-    initStage(difficulty, stageIndex);
-  }, [difficulty, stageIndex, initStage]);
+    setMuted(muted);
+  }, [muted]);
 
-  // 1. Bloquer le scroll/overscroll/bounce du navigateur sur mobile (comme Pong et Dino)
+  // ---------- Lock page (no scroll / zoom / bounce) ----------
   useEffect(() => {
-    const prevOverscroll = document.body.style.overscrollBehavior;
+    const html = document.documentElement;
+    const prev = { o: document.body.style.overflow, ob: document.body.style.overscrollBehavior };
+    document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
+    html.classList.add("game-locked");
+    const stop = (e: Event) => e.preventDefault();
+    document.addEventListener("gesturestart", stop);
     return () => {
-      document.body.style.overscrollBehavior = prevOverscroll;
+      document.body.style.overflow = prev.o;
+      document.body.style.overscrollBehavior = prev.ob;
+      html.classList.remove("game-locked");
+      document.removeEventListener("gesturestart", stop);
     };
   }, []);
 
-  // 2. Écouteurs tactiles natifs non-passifs pour bloquer tout déplacement/scroll du navigateur
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const card = canvasCardRef.current;
-    if (!canvas) return;
-
-    const blockTouch = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
-    };
-
-    canvas.addEventListener("touchstart", blockTouch, { passive: false });
-    canvas.addEventListener("touchmove", blockTouch, { passive: false });
-    canvas.addEventListener("touchend", blockTouch, { passive: false });
-    canvas.addEventListener("touchcancel", blockTouch, { passive: false });
-
-    if (card) {
-      card.addEventListener("touchstart", blockTouch, { passive: false });
-      card.addEventListener("touchmove", blockTouch, { passive: false });
-    }
-
-    return () => {
-      canvas.removeEventListener("touchstart", blockTouch);
-      canvas.removeEventListener("touchmove", blockTouch);
-      canvas.removeEventListener("touchend", blockTouch);
-      canvas.removeEventListener("touchcancel", blockTouch);
-      if (card) {
-        card.removeEventListener("touchstart", blockTouch);
-        card.removeEventListener("touchmove", blockTouch);
-      }
-    };
+  // ---------- Level control ----------
+  const startLevel = useCallback((idx: number) => {
+    const lv = LEVELS[idx];
+    const s = g.current;
+    s.level = lv;
+    s.levelIdx = idx;
+    s.t = 0;
+    s.arrows = [];
+    s.particles = [];
+    s.arrowsLeft = lv.arrows;
+    s.shotsFired = 0;
+    s.aiming = false;
+    s.cooldown = 0;
+    s.endTimer = -1;
+    s.pendingResult = null;
+    s.hostages = lv.hostages.map((h, i) => ({
+      cut: false, dead: false, breath: h.breath, phase: i * 1.3,
+      fx: 0, fy: 0, fvy: 0, landed: false,
+      speech: i === 0 ? "3teqni!! 😱" : "", speechT: i === 0 ? 2.2 : 0, shake: 0, hits: 0,
+    }));
+    s.phase = "intro";
+    setLevelIdx(idx);
+    setArrowsLeft(lv.arrows);
+    setPhase("intro");
   }, []);
 
-  const toggleFullscreen = () => {
-    const card = canvasCardRef.current;
-    if (!card) return;
-    if (!document.fullscreenElement) {
-      card.requestFullscreen?.().catch(() => {});
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-    }
+  const beginPlay = () => {
+    unlockAudio();
+    g.current.phase = "play";
+    setPhase("play");
+    tone({ freq: 660, dur: 0.12, type: "triangle", vol: 0.15 });
   };
 
-  // Boucle de rendu Canvas & Moteur physique 60fps
+  const openMenu = () => {
+    g.current.phase = "menu";
+    setPhase("menu");
+  };
+
+  // ---------- Resize canvas to its container (crisp on retina) ----------
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+    const resize = () => {
+      const r = wrap.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      canvas.width = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      const s = g.current;
+      s.dpr = dpr;
+      s.scale = r.height / WORLD_H;
+      // world width follows the screen aspect, clamped so levels stay playable
+      s.W = Math.min(Math.max(r.width / s.scale, 0.52 * WORLD_H), 1.8 * WORLD_H);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
+
+  // ---------- Main loop ----------
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    let raf = 0;
+    let last = performance.now();
 
-    let animId: number;
-    let lastTime = performance.now();
-
-    const render = (now: number) => {
-      const dt = Math.min((now - lastTime) / 1000, 0.05);
-      lastTime = now;
-
-      const s = stateRef.current;
-      s.time += dt;
-
-      // Décompte du timer de parole
-      if (s.speechTimer > 0) {
-        s.speechTimer -= dt;
-        if (s.speechTimer <= 0) {
-          s.speechText = "";
-        }
+    const burst = (x: number, y: number, color: string, n = 14, speed = 220) => {
+      const s = g.current;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const v = speed * (0.3 + Math.random());
+        s.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, life: 0.6 + Math.random() * 0.5, color, size: 2 + Math.random() * 3 });
       }
+    };
 
-      // 1. PHYSIQUE
-      // Obstacles mobiles & rotatifs
-      s.obstacles.forEach((obs) => {
-        if (obs.isMoving && obs.moveSpeed && obs.minY !== undefined && obs.maxY !== undefined) {
-          obs.y += (obs.direction || 1) * obs.moveSpeed;
-          if (obs.y > obs.maxY) {
-            obs.y = obs.maxY;
-            obs.direction = -1;
-          } else if (obs.y < obs.minY) {
-            obs.y = obs.minY;
-            obs.direction = 1;
-          }
-        }
-      });
-
-      // Mise à jour de la position des flèches plantées sur obstacles ou bonhomme
-      s.arrows.forEach((arr) => {
-        if (arr.stuckObstacleIndex !== undefined && arr.stuckObstacleIndex >= 0) {
-          const obs = s.obstacles[arr.stuckObstacleIndex];
-          if (obs) {
-            if (arr.stuckType === "rotating") {
-              const curRot = s.time * (obs.rotateSpeed || 2);
-              arr.x = obs.x + Math.cos(curRot + (arr.rotAngleOffset || 0)) * (arr.rotRadius || 0);
-              arr.y = obs.y + Math.sin(curRot + (arr.rotAngleOffset || 0)) * (arr.rotRadius || 0);
-              arr.angle = (arr.initialArrowAngle || 0) + curRot;
-            } else if (arr.stuckType === "rect") {
-              arr.x = obs.x + (arr.offsetObsX || 0);
-              arr.y = obs.y + (arr.offsetObsY || 0);
-            }
-          }
-        } else if (arr.stuckOnMan) {
-          arr.x = s.manX + (arr.offsetFromManX || 0);
-          arr.y = s.manY + (arr.offsetFromManY || 0);
-        }
-      });
-
-      // Nuages
-      s.clouds.forEach((c) => {
-        c.x += c.speed * dt;
-        if (c.x > 1040) c.x = -130;
-      });
-
-      // Humain & Corde
-      const gallowsX = stageConfig.gallowsX;
-      const gallowsY = stageConfig.gallowsY;
-      const ropeLength = stageConfig.ropeLength;
-
-      if (s.manState === "hanging") {
-        if (stageConfig.isSwinging && stageConfig.swingSpeed && stageConfig.swingAngle) {
-          const swingRad = ((Math.sin(s.time * stageConfig.swingSpeed) * stageConfig.swingAngle) * Math.PI) / 180;
-          s.manX = gallowsX + Math.sin(swingRad) * ropeLength;
-          s.manY = gallowsY + Math.cos(swingRad) * ropeLength + 45;
-        } else {
-          s.manX = gallowsX;
-          s.manY = gallowsY + ropeLength + 45;
-        }
-      } else if (s.manState === "falling") {
-        s.manVy += GRAVITY * dt;
-        s.manY += s.manVy * dt;
-        if (s.manY >= 430) {
-          s.manY = 430;
-          s.manVy = 0;
-          s.manState = "saved";
-          playArcherySound("win");
-          setGameStatus("won");
-          s.status = "won";
-          s.speechText = "rbaaht ! 🏆";
-          s.speechTimer = 4.0;
-
-          // Débloquer le niveau suivant
-          setUnlockedLevels((prev) => ({
-            ...prev,
-            [difficulty]: Math.max(prev[difficulty], stageIndex + 1),
-          }));
-
-          // Feux d'artifice de confettis
-          const confettiColors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6"];
-          for (let i = 0; i < 65; i++) {
-            s.particles.push({
-              x: s.manX,
-              y: s.manY - 20,
-              vx: (Math.random() - 0.5) * 360,
-              vy: -150 - Math.random() * 260,
-              color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
-              size: 3 + Math.random() * 4,
-              alpha: 1,
-              life: 1.8,
-            });
-          }
-        }
+    const finish = (win: boolean, reason?: string) => {
+      const s = g.current;
+      if (s.pendingResult) return;
+      s.pendingResult = { win, reason };
+      s.endTimer = win ? 1.4 : 1.1;
+      s.aiming = false;
+      if (win) {
+        [523, 659, 784, 1046].forEach((f, i) => tone({ freq: f, dur: 0.25, type: "triangle", vol: 0.18, delay: i * 0.11 }));
+      } else {
+        [392, 330, 262].forEach((f, i) => tone({ freq: f, dur: 0.3, type: "sawtooth", vol: 0.1, delay: i * 0.15 }));
       }
+    };
 
-      // Flèche active en vol
-      if (s.activeArrow && s.activeArrow.inFlight) {
-        const arrow = s.activeArrow;
-        arrow.vy += GRAVITY * dt;
-        arrow.x += arrow.vx * dt;
-        arrow.y += arrow.vy * dt;
-        arrow.angle = Math.atan2(arrow.vy, arrow.vx);
+    const update = (dt: number) => {
+      const s = g.current;
+      const lv = s.level;
+      s.t += dt;
+      s.cooldown = Math.max(0, s.cooldown - dt);
+      const W = s.W;
 
-        // TEST 1 : Corde coupée
-        if (!s.ropeCut && s.manState === "hanging") {
-          const ropeTopX = gallowsX;
-          const ropeTopY = gallowsY;
-          const ropeBottomX = s.manX;
-          const ropeBottomY = s.manY - 45;
-
-          const l2 = (ropeBottomX - ropeTopX) ** 2 + (ropeBottomY - ropeTopY) ** 2;
-          let t = ((arrow.x - ropeTopX) * (ropeBottomX - ropeTopX) + (arrow.y - ropeTopY) * (ropeBottomY - ropeTopY)) / l2;
-          t = Math.max(0, Math.min(1, t));
-          const projX = ropeTopX + t * (ropeBottomX - ropeTopX);
-          const projY = ropeTopY + t * (ropeBottomY - ropeTopY);
-          const distToRope = Math.hypot(arrow.x - projX, arrow.y - projY);
-
-          const isMobile = typeof window !== "undefined" && window.innerWidth < 680;
-          const hitTolerance = isMobile ? stageConfig.ropeWidth * 1.45 : stageConfig.ropeWidth;
-
-          if (distToRope <= hitTolerance) {
-            s.ropeCut = true;
-            s.manState = "falling";
-            s.manVy = 50;
-            playArcherySound("cut");
-
-            for (let i = 0; i < 32; i++) {
-              s.particles.push({
-                x: projX,
-                y: projY,
-                vx: (Math.random() - 0.5) * 260,
-                vy: (Math.random() - 0.5) * 260,
-                color: Math.random() > 0.5 ? "#f59e0b" : "#fef08a",
-                size: 2.5 + Math.random() * 3.5,
-                alpha: 1,
-                life: 0.9,
-              });
-            }
+      // hostages
+      s.hostages.forEach((hs, i) => {
+        hs.speechT = Math.max(0, hs.speechT - dt);
+        hs.shake = Math.max(0, hs.shake - dt * 2);
+        if (!hs.cut && !hs.dead && s.phase === "play" && !s.pendingResult) {
+          hs.breath -= dt;
+          if (hs.breath <= 0) {
+            hs.breath = 0;
+            hs.dead = true;
+            finish(false, "Ma lhaqtch… l bnadem ma 9derch ytnefes 😢");
           }
         }
+        if (hs.cut && !hs.landed) {
+          hs.fvy += GRAVITY * dt;
+          hs.fy += hs.fvy * dt;
+          const groundNeck = GROUND - 100;
+          if (hs.fy >= groundNeck) {
+            hs.fy = groundNeck;
+            hs.landed = true;
+            hs.speech = SAVED_LINES[i % SAVED_LINES.length];
+            hs.speechT = 2.5;
+            noise(0.15, 0.2, 300);
+          }
+        }
+      });
 
-        // TEST 2 : FLÈCHE TOUCHANT L'HUMAIN (TÊTE SÉPARÉE DE CORPS !) - Uniquement s'il est encore suspendu
-        if (!s.ropeCut && s.manState === "hanging") {
-          const dxMan = arrow.x - s.manX;
-          const dyMan = arrow.y - s.manY;
+      // arrows
+      const sub = 4;
+      const h = dt / sub;
+      for (const a of s.arrows) {
+        if (a.state !== "fly") continue;
+        for (let k = 0; k < sub && a.state === "fly"; k++) {
+          a.vy += GRAVITY * h;
+          a.vx += (lv.wind ?? 0) * h;
+          a.x += a.vx * h;
+          a.y += a.vy * h;
+          a.angle = Math.atan2(a.vy, a.vx);
+          const tx = a.x + Math.cos(a.angle) * (ARROW_LEN / 2);
+          const ty = a.y + Math.sin(a.angle) * (ARROW_LEN / 2);
 
-          // Détection de la tête (centre : x=0, y=-32, rayon 18)
-          const hitHead = Math.hypot(dxMan, dyMan + 32) < 18;
-          // Détection du corps (torse & jambes)
-          const hitTorso = Math.abs(dxMan) < 15 && dyMan >= -12 && dyMan <= 28;
-          const hitLegs = Math.abs(dxMan) < 14 && dyMan > 28 && dyMan <= 55;
-
-          if (hitHead) {
-            // DEMANDE : Touché à la tête = NON PAS NORMAL ! DIT "ayyy rassi" ET MORT IMMÉDIATE !
-            arrow.inFlight = false;
-            arrow.stuck = true;
-            arrow.stuckOnMan = true;
-            arrow.offsetFromManX = dxMan;
-            arrow.offsetFromManY = dyMan;
-            s.arrows.push(arrow);
-            s.activeArrow = null;
-
-            s.manHitsCount = 3; // Mortel !
-            s.manState = "dead";
-            s.speechText = "ayyy rassi"; // Phrase exacte demandée pour la tête !
-            s.speechTimer = 5.5;
-            s.deathReason = "head";
-
-            playArcherySound("hitMan");
-            playArcherySound("lose");
-            setGameStatus("lost");
-            setLossReason("head");
-            s.status = "lost";
-
-            for (let i = 0; i < 20; i++) {
-              s.particles.push({
-                x: arrow.x,
-                y: arrow.y,
-                vx: (Math.random() - 0.5) * 160,
-                vy: (Math.random() - 0.5) * 160,
-                color: "#ef4444",
-                size: 3 + Math.random() * 3,
-                alpha: 1,
-                life: 0.8,
-              });
+          // hostages: rope (cut), head (lose), body (penalty)
+          for (let i = 0; i < s.hostages.length && a.state === "fly"; i++) {
+            const hs = s.hostages[i];
+            if (hs.dead) continue;
+            const geo = hostageGeom(lv, i, hs, W, s.t);
+            if (!hs.cut && distToSeg(tx, ty, geo.px, geo.py, geo.nx, geo.ny - 2) < 7) {
+              hs.cut = true;
+              hs.fx = geo.nx;
+              hs.fy = geo.ny;
+              hs.fvy = 0;
+              burst(tx, ty, "#c8a165", 16, 160);
+              noise(0.12, 0.3, 2400, 0, 2);
+              tone({ freq: 880, to: 1320, dur: 0.15, type: "square", vol: 0.08 });
+              // arrow keeps flying after cutting the rope
+              continue;
             }
-          } else if (hitTorso || hitLegs) {
-            // Touché au corps par erreur : 3 phrases un après un
-            arrow.inFlight = false;
-            arrow.stuck = true;
-            arrow.stuckOnMan = true;
-            arrow.offsetFromManX = dxMan;
-            arrow.offsetFromManY = dyMan;
-            s.arrows.push(arrow);
-            s.activeArrow = null;
-
-            s.manHitsCount += 1;
-            playArcherySound("hitMan");
-
-            // CYCLE DES 3 PHRASES (UN APRÈS UN) :
-            // 1. "ayy a viser mlih"
-            // 2. "marakche tchouf ??"
-            // 3. "kamal 3liya khir"
-            const phrase = COMPLAINT_MESSAGES[s.complaintCycle % COMPLAINT_MESSAGES.length];
-            s.complaintCycle += 1;
-            s.speechText = phrase;
-            s.speechTimer = 5.5; // RESTE 5 À 6 SECONDES
-
-            for (let i = 0; i < 16; i++) {
-              s.particles.push({
-                x: arrow.x,
-                y: arrow.y,
-                vx: (Math.random() - 0.5) * 140,
-                vy: (Math.random() - 0.5) * 140,
-                color: "#ef4444",
-                size: 2.5 + Math.random() * 2.5,
-                alpha: 1,
-                life: 0.7,
-              });
+            const headX = geo.nx + geo.dx * 13, headY = geo.ny + geo.dy * 13;
+            if (Math.hypot(tx - headX, ty - headY) < 13) {
+              a.state = "stuck";
+              a.onHostage = i;
+              [a.lx, a.ly] = rot(tx - geo.nx, ty - geo.ny, geo.a); a.la = a.angle + geo.a;
+              hs.dead = true;
+              burst(tx, ty, "#e11d48", 22, 200);
+              noise(0.25, 0.35, 500);
+              finish(false, "Headshot! 💀 Qtelto, ma sauvitouch…");
+              break;
             }
+            const shX = geo.nx + geo.dx * 26, shY = geo.ny + geo.dy * 26;
+            const hipX = geo.nx + geo.dx * 62, hipY = geo.ny + geo.dy * 62;
+            const ftX = geo.nx + geo.dx * 100, ftY = geo.ny + geo.dy * 100;
+            if (distToSeg(tx, ty, shX, shY, hipX, hipY) < 11 || distToSeg(tx, ty, hipX, hipY, ftX, ftY) < 8) {
+              a.state = "stuck";
+              a.onHostage = i;
+              [a.lx, a.ly] = rot(tx - geo.nx, ty - geo.ny, geo.a); a.la = a.angle + geo.a;
+              hs.hits++;
+              hs.breath = Math.max(0.5, hs.breath - 6);
+              hs.shake = 1.2;
+              hs.speech = BODY_LINES[(hs.hits - 1) % BODY_LINES.length];
+              hs.speechT = 2.2;
+              burst(tx, ty, "#ef4444", 10, 120);
+              tone({ freq: 300, to: 160, dur: 0.25, type: "sawtooth", vol: 0.12 });
+            }
+          }
+          if (a.state !== "fly") break;
 
-            if (s.manHitsCount >= 3) {
-              s.manState = "dead";
-              s.deathReason = "body";
-              playArcherySound("lose");
-              setGameStatus("lost");
-              setLossReason("body");
-              s.status = "lost";
-              s.speechText = "kamal 3liya khir ☠️";
-              s.speechTimer = 6;
+          // obstacles
+          for (let j = 0; j < lv.obstacles.length; j++) {
+            const o = lv.obstacles[j];
+            const og = obstacleGeom(o, W, s.t);
+            let hit = false;
+            if (o.kind === "wall") {
+              hit = Math.abs(tx - og.cx) < o.w / 2 && Math.abs(ty - og.cy) < o.h / 2;
             } else {
-              setGameStatus("aiming");
-              s.status = "aiming";
+              const hx = Math.cos(og.ang) * o.w / 2, hy = Math.sin(og.ang) * o.w / 2;
+              hit = distToSeg(tx, ty, og.cx - hx, og.cy - hy, og.cx + hx, og.cy + hy) < o.h / 2 + 3;
+            }
+            if (hit) {
+              a.state = "stuck";
+              a.onObstacle = j;
+              // local coords (rotated frame for blades)
+              const rx = tx - og.cx, ry = ty - og.cy;
+              const c = Math.cos(-og.ang), sn = Math.sin(-og.ang);
+              a.lx = rx * c - ry * sn; a.ly = rx * sn + ry * c; a.la = a.angle - og.ang;
+              noise(0.08, 0.3, 700);
+              break;
             }
           }
-        }
+          if (a.state !== "fly") break;
 
-        // TEST 3 : Obstacles statiques & rotatifs (Plantation sur l'obstacle)
-        if (arrow.inFlight) {
-          for (let obsIndex = 0; obsIndex < s.obstacles.length; obsIndex++) {
-            const obs = s.obstacles[obsIndex];
-            if (obs.isRotating) {
-              // Obstacle rotatif (pales de moulin / hélice)
-              const rotAngle = s.time * (obs.rotateSpeed || 2);
-              const halfLen = (obs.length || 120) / 2;
-
-              // Pale 1
-              const x1 = obs.x + Math.cos(rotAngle) * halfLen;
-              const y1 = obs.y + Math.sin(rotAngle) * halfLen;
-              const x2 = obs.x - Math.cos(rotAngle) * halfLen;
-              const y2 = obs.y - Math.sin(rotAngle) * halfLen;
-
-              // Pale 2 (perpendiculaire)
-              const x3 = obs.x + Math.cos(rotAngle + Math.PI / 2) * halfLen;
-              const y3 = obs.y + Math.sin(rotAngle + Math.PI / 2) * halfLen;
-              const x4 = obs.x - Math.cos(rotAngle + Math.PI / 2) * halfLen;
-              const y4 = obs.y - Math.sin(rotAngle + Math.PI / 2) * halfLen;
-
-              const d1 = distToSegment(arrow.x, arrow.y, x1, y1, x2, y2);
-              const d2 = distToSegment(arrow.x, arrow.y, x3, y3, x4, y4);
-
-              if (d1 < 12 || d2 < 12) {
-                arrow.inFlight = false;
-                arrow.stuck = true;
-                arrow.stuckObstacleIndex = obsIndex;
-                arrow.stuckType = "rotating";
-
-                const curRot = s.time * (obs.rotateSpeed || 2);
-                const dx = arrow.x - obs.x;
-                const dy = arrow.y - obs.y;
-                arrow.rotRadius = Math.hypot(dx, dy);
-                arrow.rotAngleOffset = Math.atan2(dy, dx) - curRot;
-                arrow.initialArrowAngle = arrow.angle - curRot;
-
-                s.arrows.push(arrow);
-                s.activeArrow = null;
-                playArcherySound("thud");
-                setGameStatus("aiming");
-                s.status = "aiming";
-                break;
-              }
-            } else {
-              // Obstacle rectangulaire classique (mobile ou statique)
-              if (
-                arrow.x >= obs.x &&
-                arrow.x <= obs.x + obs.width &&
-                arrow.y >= obs.y &&
-                arrow.y <= obs.y + obs.height
-              ) {
-                arrow.inFlight = false;
-                arrow.stuck = true;
-                arrow.stuckObstacleIndex = obsIndex;
-                arrow.stuckType = "rect";
-
-                // Stocke l'offset relatif pour bouger solidairement avec l'obstacle !
-                arrow.offsetObsX = arrow.x - obs.x;
-                arrow.offsetObsY = arrow.y - obs.y;
-
-                s.arrows.push(arrow);
-                s.activeArrow = null;
-                playArcherySound("thud");
-                setGameStatus("aiming");
-                s.status = "aiming";
-                break;
-              }
+          // gallows posts are solid too
+          for (let i = 0; i < lv.hostages.length; i++) {
+            const postX = postXOf(lv.hostages[i].x * W, W);
+            const topY = lv.hostages[i].y * WORLD_H - 8;
+            if (Math.abs(tx - postX) < 7 && ty > topY && ty < GROUND) {
+              a.state = "stuck"; a.lx = a.x; a.ly = a.y; a.la = a.angle;
+              noise(0.08, 0.3, 700);
+              break;
             }
           }
-        }
+          if (a.state !== "fly") break;
 
-        // TEST 3.5 : Potence en bois massif (Arrêt net si on touche le bois de la potence)
-        if (arrow && arrow.inFlight) {
-          const inGallowsBeam =
-            arrow.x >= gallowsX - 25 &&
-            arrow.x <= gallowsX + 55 &&
-            arrow.y >= gallowsY - 22 &&
-            arrow.y <= gallowsY - 2;
-          const inGallowsPost =
-            arrow.x >= gallowsX + 38 &&
-            arrow.x <= gallowsX + 58 &&
-            arrow.y >= gallowsY - 20 &&
-            arrow.y <= 475;
-
-          if (inGallowsBeam || inGallowsPost) {
-            arrow.inFlight = false;
-            arrow.stuck = true;
-            s.arrows.push(arrow);
-            s.activeArrow = null;
-            playArcherySound("thud");
-            setGameStatus("aiming");
-            s.status = "aiming";
+          if (ty >= GROUND) {
+            a.state = "stuck";
+            a.y -= ty - GROUND;
+            a.lx = a.x; a.ly = a.y; a.la = a.angle;
+            noise(0.06, 0.15, 400);
+          } else if (a.x > W + 80 || a.x < -80 || a.y > WORLD_H + 50) {
+            a.state = "gone";
           }
-        }
-
-        // TEST 4 : Sol & Hors écran
-        if (arrow && arrow.inFlight) {
-          if (arrow.y >= 475) {
-            arrow.y = 475;
-            arrow.inFlight = false;
-            arrow.stuck = true;
-            s.arrows.push(arrow);
-            s.activeArrow = null;
-            playArcherySound("thud");
-            setGameStatus("aiming");
-            s.status = "aiming";
-          } else if (arrow.x > 1020 || arrow.x < -30 || arrow.y < -60) {
-            arrow.inFlight = false;
-            s.activeArrow = null;
-            setGameStatus("aiming");
-            s.status = "aiming";
-          }
-        }
-
-        if (
-          !s.activeArrow &&
-          s.arrowsRemaining <= 0 &&
-          !s.ropeCut &&
-          s.manState === "hanging"
-        ) {
-          s.deathReason = "arrows";
-          setLossReason("arrows");
-          setGameStatus("lost");
-          s.status = "lost";
-          playArcherySound("lose");
         }
       }
 
-      // Vérification générale de défaite si flèches finies et bonhomme non sauvé
-      if (
-        !s.activeArrow &&
-        s.arrowsRemaining <= 0 &&
-        !s.ropeCut &&
-        s.manState === "hanging" &&
-        s.status !== "lost" &&
-        s.status !== "won"
-      ) {
-        s.deathReason = "arrows";
-        setLossReason("arrows");
-        setGameStatus("lost");
-        s.status = "lost";
-        playArcherySound("lose");
-      }
-
-      // Particules
-      for (let i = s.particles.length - 1; i >= 0; i--) {
-        const p = s.particles[i];
+      // particles
+      for (const p of s.particles) {
+        p.vy += 500 * dt;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-        p.vy += 320 * dt;
         p.life -= dt;
-        p.alpha = Math.max(0, p.life);
-        if (p.life <= 0) s.particles.splice(i, 1);
       }
+      s.particles = s.particles.filter((p) => p.life > 0);
 
-      // ================= 2. RENDU CANVAS DESIGN WOW =================
-      ctx.clearRect(0, 0, 960, 540);
-
-      // Camera Zoom & Pan (pour téléphone et zoom)
-      ctx.save();
-      const currentZoom = zoomLevelRef.current;
-      if (currentZoom > 1.0) {
-        // Centrage de la caméra entre l'archer et la cible pour que ce ne soit pas "loin" sur téléphone
-        const targetCenterX = (s.bowX + stageConfig.gallowsX) / 2;
-        const targetCenterY = (s.bowY + stageConfig.gallowsY) / 2 - 20;
-        ctx.translate(480, 270);
-        ctx.scale(currentZoom, currentZoom);
-        ctx.translate(-targetCenterX, -targetCenterY);
-      }
-
-      // Ciel dégradé d'aube médiévale étendu
-      const skyGrad = ctx.createLinearGradient(0, -200, 0, 520);
-      skyGrad.addColorStop(0, "#0284c7");
-      skyGrad.addColorStop(0.35, "#38bdf8");
-      skyGrad.addColorStop(0.7, "#bae6fd");
-      skyGrad.addColorStop(1, "#f0fdf4");
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(-350, -250, 1660, 950);
-
-      // Soleil doré et halo radiant
-      const sunHalo = ctx.createRadialGradient(830, 85, 10, 830, 85, 80);
-      sunHalo.addColorStop(0, "#ffffff");
-      sunHalo.addColorStop(0.3, "#fef08a");
-      sunHalo.addColorStop(0.7, "rgba(254, 240, 138, 0.4)");
-      sunHalo.addColorStop(1, "rgba(254, 240, 138, 0)");
-      ctx.fillStyle = sunHalo;
-      ctx.beginPath();
-      ctx.arc(830, 85, 80, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Nuages parallaxe
-      ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
-      s.clouds.forEach((cl) => {
-        ctx.save();
-        ctx.translate(cl.x, cl.y);
-        ctx.scale(cl.scale, cl.scale);
-        ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.arc(16, -10, 24, 0, Math.PI * 2);
-        ctx.arc(38, -6, 20, 0, Math.PI * 2);
-        ctx.arc(52, 2, 16, 0, Math.PI * 2);
-        ctx.arc(26, 8, 22, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      });
-
-      // Montagnes lointaines avec forteresse médiévale (étendues)
-      ctx.fillStyle = "#93c5fd";
-      ctx.beginPath();
-      ctx.moveTo(-350, 480);
-      ctx.lineTo(-350, 320);
-      ctx.lineTo(150, 230);
-      ctx.lineTo(310, 290);
-      ctx.lineTo(490, 200);
-      ctx.lineTo(650, 280);
-      ctx.lineTo(810, 230);
-      ctx.lineTo(1350, 300);
-      ctx.lineTo(1350, 480);
-      ctx.closePath();
-      ctx.fill();
-
-      // Château médiéval
-      ctx.fillStyle = "#64748b";
-      ctx.fillRect(480, 188, 22, 15);
-      ctx.fillRect(477, 184, 6, 6);
-      ctx.fillRect(499, 184, 6, 6);
-      ctx.strokeStyle = "#475569";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(491, 184);
-      ctx.lineTo(491, 170);
-      ctx.stroke();
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.moveTo(491, 170);
-      ctx.lineTo(500, 173);
-      ctx.lineTo(491, 176);
-      ctx.closePath();
-      ctx.fill();
-
-      // Collines moyennes étendues
-      ctx.fillStyle = "#86efac";
-      ctx.beginPath();
-      ctx.moveTo(-350, 480);
-      ctx.quadraticCurveTo(250, 360, 510, 400);
-      ctx.quadraticCurveTo(770, 440, 1350, 380);
-      ctx.lineTo(1350, 600);
-      ctx.lineTo(-350, 600);
-      ctx.fill();
-
-      // Sol riche en herbe avec fleurs étendu
-      const groundGrad = ctx.createLinearGradient(0, 475, 0, 540);
-      groundGrad.addColorStop(0, "#4ade80");
-      groundGrad.addColorStop(0.18, "#22c55e");
-      groundGrad.addColorStop(1, "#15803d");
-      ctx.fillStyle = groundGrad;
-      ctx.fillRect(-350, 475, 1700, 95);
-
-      ctx.fillStyle = "#78350f";
-      ctx.fillRect(-350, 518, 1700, 40);
-
-      // Brins d'herbe
-      ctx.strokeStyle = "#86efac";
-      ctx.lineWidth = 2.5;
-      for (let gx = -250; gx < 1250; gx += 22) {
-        ctx.beginPath();
-        ctx.moveTo(gx, 475);
-        ctx.lineTo(gx + 3, 467);
-        ctx.moveTo(gx + 5, 475);
-        ctx.lineTo(gx + 10, 465);
-        ctx.stroke();
-      }
-
-      // Fleurs
-      for (let fx = -220; fx < 1250; fx += 55) {
-        const isRed = Math.abs(fx) % 110 === 0;
-        ctx.fillStyle = isRed ? "#ef4444" : "#ffffff";
-        ctx.beginPath();
-        ctx.arc(fx, 472, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#facc15";
-        ctx.beginPath();
-        ctx.arc(fx, 472, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Obstacles du niveau (statiques et rotatifs)
-      s.obstacles.forEach((obs) => {
-        ctx.save();
-        if (obs.isRotating) {
-          // Obstacle rotatif à 4 pales
-          const rotAngle = s.time * (obs.rotateSpeed || 2);
-          const halfLen = (obs.length || 120) / 2;
-
-          ctx.translate(obs.x, obs.y);
-          ctx.rotate(rotAngle);
-
-          // Pales en bois
-          ctx.fillStyle = obs.color || "#854d0e";
-          ctx.strokeStyle = "#271202";
-          ctx.lineWidth = 2.5;
-
-          ctx.beginPath();
-          ctx.roundRect(-halfLen, -7, obs.length || 120, 14, 4);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.beginPath();
-          ctx.roundRect(-7, -halfLen, 14, obs.length || 120, 4);
-          ctx.fill();
-          ctx.stroke();
-
-          // Moyeu central en fer
-          ctx.fillStyle = "#475569";
-          ctx.beginPath();
-          ctx.arc(0, 0, 9, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        } else {
-          // Obstacle rectangulaire
-          ctx.fillStyle = obs.color || "#854d0e";
-          ctx.strokeStyle = "#271202";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.roundRect(obs.x, obs.y, obs.width, obs.height, 8);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.strokeStyle = "rgba(0,0,0,0.22)";
-          ctx.lineWidth = 1.5;
-          for (let py = obs.y + 20; py < obs.y + obs.height; py += 24) {
-            ctx.beginPath();
-            ctx.moveTo(obs.x + 3, py);
-            ctx.lineTo(obs.x + obs.width - 3, py);
-            ctx.stroke();
-          }
+      // win / lose checks
+      if (s.phase === "play" && !s.pendingResult) {
+        if (s.hostages.every((hs) => hs.cut)) finish(true);
+        else if (s.arrowsLeft === 0 && !s.arrows.some((a) => a.state === "fly")) {
+          finish(false, "Kmlou l flèches 🏹… 3awed!");
         }
-        ctx.restore();
-      });
-
-      // Potence en chêne massif
-      ctx.save();
-      ctx.fillStyle = "#5c2c08";
-      ctx.strokeStyle = "#2e1502";
-      ctx.lineWidth = 3.5;
-
-      ctx.beginPath();
-      ctx.roundRect(gallowsX + 38, gallowsY - 20, 20, 390, 5);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.roundRect(gallowsX - 25, gallowsY - 20, 80, 18, 5);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(gallowsX + 38, gallowsY + 34);
-      ctx.lineTo(gallowsX + 8, gallowsY - 2);
-      ctx.lineTo(gallowsX + 20, gallowsY - 2);
-      ctx.lineTo(gallowsX + 38, gallowsY + 18);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.strokeStyle = "#475569";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(gallowsX, gallowsY - 2, 5, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-
-      // Corde (très petite en Hard !)
-      if (!s.ropeCut) {
-        ctx.save();
-        ctx.strokeStyle = "#d97706";
-        ctx.lineWidth = difficulty === "hard" ? 3 : 4.5;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(gallowsX, gallowsY);
-        ctx.lineTo(s.manX, s.manY - 45);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#fef08a";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(gallowsX, gallowsY);
-        ctx.lineTo(s.manX, s.manY - 45);
-        ctx.stroke();
-
-        ctx.fillStyle = "#92400e";
-        ctx.beginPath();
-        ctx.arc(s.manX, s.manY - 45, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
       }
 
-      // Humain "Bnadem" (بنادم)
-      ctx.save();
-      ctx.translate(s.manX, s.manY);
-
-      if (s.manState === "dead") {
-        ctx.rotate(0.28);
-      } else if (s.manState === "saved") {
-        ctx.translate(0, -Math.abs(Math.sin(s.time * 6)) * 16);
+      if (s.pendingResult && s.endTimer > 0) {
+        s.endTimer -= dt;
+        if (s.endTimer <= 0) {
+          const { win, reason } = s.pendingResult;
+          s.phase = win ? "won" : "lost";
+          let stars = 0;
+          if (win) {
+            const extra = s.shotsFired - lv.hostages.length;
+            const hits = s.hostages.reduce((n, hs) => n + hs.hits, 0);
+            stars = extra <= 0 ? 3 : extra <= 1 ? 2 : 1;
+            if (hits > 0) stars = Math.min(stars, 2);
+          }
+          setResult({ stars, reason });
+          setPhase(win ? "won" : "lost");
+        }
       }
+    };
 
-      // Ombre
-      ctx.fillStyle = "rgba(0,0,0,0.16)";
-      ctx.beginPath();
-      ctx.ellipse(0, 475 - s.manY, 20, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Jambes & Baskets
-      ctx.strokeStyle = "#1e293b";
-      ctx.lineWidth = 5.5;
+    // ---------- Drawing ----------
+    const drawMan = (x: number, y: number, dx: number, dy: number, hs: HostageState, scared: boolean) => {
+      // (x,y) = neck point, (dx,dy) = body direction
+      const P = (d: number, side = 0) => [x + dx * d + -dy * side, y + dy * d + dx * side] as const;
+      const [hx, hy] = P(13);
+      const [shx, shy] = P(26);
+      const [hipx, hipy] = P(62);
       ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-6, 20);
-      ctx.lineTo(-7, 44);
-      ctx.moveTo(6, 20);
-      ctx.lineTo(7, 44);
-      ctx.stroke();
-
-      ctx.fillStyle = "#ef4444";
-      ctx.fillRect(-12, 42, 11, 6);
-      ctx.fillRect(2, 42, 11, 6);
-
-      // Corps
-      ctx.fillStyle = s.manState === "saved" ? "#10b981" : "#0284c7";
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.roundRect(-13, -14, 26, 35, 7);
-      ctx.fill();
-      ctx.stroke();
-
-      // Bras
-      ctx.strokeStyle = s.manState === "saved" ? "#10b981" : "#0284c7";
-      ctx.lineWidth = 4.5;
-      ctx.beginPath();
-      if (s.manState === "saved") {
-        ctx.moveTo(-10, -8);
-        ctx.lineTo(-22, -30);
-        ctx.moveTo(10, -8);
-        ctx.lineTo(22, -30);
-      } else {
-        ctx.moveTo(-10, -8);
-        ctx.lineTo(-15, 16);
-        ctx.moveTo(10, -8);
-        ctx.lineTo(15, 16);
+      // legs
+      ctx.strokeStyle = "#1e3a8a";
+      ctx.lineWidth = 7;
+      const legSpread = hs.landed ? 9 + Math.abs(Math.sin(g.current.t * 8)) * 4 : 5;
+      for (const sd of [-1, 1]) {
+        const [fx, fy] = P(100, sd * legSpread);
+        ctx.beginPath(); ctx.moveTo(hipx, hipy); ctx.lineTo(fx, fy); ctx.stroke();
       }
-      ctx.stroke();
-
-      // Corde torse
-      if (!s.ropeCut) {
-        ctx.strokeStyle = "#d97706";
-        ctx.lineWidth = 3;
+      // torso
+      ctx.strokeStyle = hs.hits > 0 ? "#dc2626" : "#f97316";
+      ctx.lineWidth = 15;
+      ctx.beginPath(); ctx.moveTo(shx, shy); ctx.lineTo(hipx, hipy); ctx.stroke();
+      // arms: tied behind when hanging, raised when saved
+      ctx.strokeStyle = "#f2c9a0";
+      ctx.lineWidth = 5;
+      for (const sd of [-1, 1]) {
         ctx.beginPath();
-        ctx.moveTo(-12, 0);
-        ctx.lineTo(12, 0);
-        ctx.moveTo(-12, 8);
-        ctx.lineTo(12, 8);
+        ctx.moveTo(shx + -dy * sd * 6, shy + dx * sd * 6);
+        if (hs.landed) {
+          const wave = Math.sin(g.current.t * 10 + sd) * 6;
+          ctx.lineTo(shx + sd * 18, shy - 26 + wave);
+        } else {
+          const [ax, ay] = P(56, sd * 9);
+          ctx.lineTo(ax, ay);
+        }
         ctx.stroke();
       }
+      // head
+      ctx.fillStyle = "#f2c9a0";
+      ctx.strokeStyle = "#7c4a24";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(hx, hy, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      // hair
+      ctx.fillStyle = "#3b2414";
+      ctx.beginPath(); ctx.arc(hx, hy - 3, 12, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+      // face
+      ctx.fillStyle = "#111";
+      if (hs.dead) {
+        ctx.strokeStyle = "#111"; ctx.lineWidth = 1.8;
+        for (const ex of [-4.5, 4.5]) {
+          ctx.beginPath(); ctx.moveTo(hx + ex - 2, hy - 3); ctx.lineTo(hx + ex + 2, hy + 1);
+          ctx.moveTo(hx + ex + 2, hy - 3); ctx.lineTo(hx + ex - 2, hy + 1); ctx.stroke();
+        }
+      } else {
+        for (const ex of [-4.5, 4.5]) { ctx.beginPath(); ctx.arc(hx + ex, hy - 1, 1.8, 0, Math.PI * 2); ctx.fill(); }
+        ctx.beginPath();
+        if (scared) { ctx.ellipse(hx, hy + 5, 2.6, 3.4, 0, 0, Math.PI * 2); ctx.fill(); }
+        else { ctx.strokeStyle = "#111"; ctx.lineWidth = 1.8; ctx.arc(hx, hy + 2, 5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+      }
+    };
 
-      // Tête
-      ctx.fillStyle = "#fde047";
-      ctx.strokeStyle = "#b45309";
+    const drawArrow = (x: number, y: number, ang: number, alpha = 1) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      ctx.strokeStyle = "#6b4423";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-ARROW_LEN / 2, 0); ctx.lineTo(ARROW_LEN / 2 - 4, 0); ctx.stroke();
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath(); ctx.moveTo(ARROW_LEN / 2 + 5, 0); ctx.lineTo(ARROW_LEN / 2 - 6, -5); ctx.lineTo(ARROW_LEN / 2 - 6, 5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath(); ctx.moveTo(-ARROW_LEN / 2, 0); ctx.lineTo(-ARROW_LEN / 2 - 7, -6); ctx.lineTo(-ARROW_LEN / 2 + 5, 0); ctx.lineTo(-ARROW_LEN / 2 - 7, 6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    };
+
+    // below=true: bubble under the anchor (used while hanging so it never hides the rope)
+    const bubble = (x: number, y: number, text: string, alpha: number, below = false) => {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, alpha * 3);
+      ctx.font = "700 15px Outfit, sans-serif";
+      const w = ctx.measureText(text).width + 18;
+      const bx = Math.min(Math.max(x - w / 2, 6), g.current.W - w - 6);
+      const by = below ? y + 8 : y - 34;
+      ctx.fillStyle = "white";
+      ctx.strokeStyle = "#1f2937";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(0, -32, 17, 0, Math.PI * 2);
+      ctx.roundRect(bx, by, w, 26, 10);
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      if (below) { ctx.moveTo(x - 5, by); ctx.lineTo(x, by - 8); ctx.lineTo(x + 5, by); }
+      else { ctx.moveTo(x - 5, by + 26); ctx.lineTo(x, by + 34); ctx.lineTo(x + 5, by + 26); }
       ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
-      ctx.beginPath();
-      ctx.arc(-10, -28, 4, 0, Math.PI * 2);
-      ctx.arc(10, -28, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Casquette
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.arc(0, -38, 15, Math.PI, 0);
-      ctx.fill();
-      ctx.fillStyle = "#b91c1c";
-      ctx.fillRect(0, -39, 18, 5);
-
-      // Yeux & Bouche
-      ctx.fillStyle = "#0f172a";
-      ctx.strokeStyle = "#0f172a";
-
-      if (s.manState === "dead" || s.manHitsCount >= 3) {
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(-9, -36);
-        ctx.lineTo(-3, -30);
-        ctx.moveTo(-3, -36);
-        ctx.lineTo(-9, -30);
-        ctx.moveTo(3, -36);
-        ctx.lineTo(9, -30);
-        ctx.moveTo(9, -36);
-        ctx.lineTo(3, -30);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.ellipse(0, -22, 3, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (s.manState === "saved") {
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.arc(-5, -33, 4, Math.PI, 0);
-        ctx.arc(5, -33, 4, Math.PI, 0);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.arc(0, -26, 7, 0, Math.PI);
-        ctx.fill();
-      } else {
-        let eyeDx = 0;
-        let eyeDy = 0;
-        if (s.activeArrow) {
-          const angleToArrow = Math.atan2(s.activeArrow.y - s.manY, s.activeArrow.x - s.manX);
-          eyeDx = Math.cos(angleToArrow) * 2.5;
-          eyeDy = Math.sin(angleToArrow) * 2;
-        }
-
-        ctx.beginPath();
-        ctx.arc(-5 + eyeDx, -33 + eyeDy, 2.5, 0, Math.PI * 2);
-        ctx.arc(5 + eyeDx, -33 + eyeDy, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (s.manHitsCount === 2) {
-          ctx.beginPath();
-          ctx.arc(0, -24, 4.5, Math.PI, 0);
-          ctx.stroke();
-          ctx.fillStyle = "#38bdf8";
-          ctx.beginPath();
-          ctx.arc(15, -42, 3, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (s.manHitsCount === 1) {
-          ctx.beginPath();
-          ctx.ellipse(0, -24, 2.8, 3.8, 0, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.beginPath();
-          ctx.arc(0, -26, 4.5, 0, Math.PI);
-          ctx.stroke();
-        }
-      }
-
-      ctx.restore(); // Fin Man
-
-      // BULLE DE PAROLE QUI SORT DE LA BOUCHE
-      if (s.speechText && s.speechText.length > 0) {
-        ctx.save();
-        ctx.font = '900 13px "Outfit", sans-serif';
-        const msg = s.speechText;
-        const textMetrics = ctx.measureText(msg);
-        const padH = 14;
-        const padV = 8;
-        const bubbleW = textMetrics.width + padH * 2;
-        const bubbleH = 28;
-
-        const showOnLeft = s.manX > 750;
-        const bx = showOnLeft ? s.manX - bubbleW - 22 : s.manX + 22;
-        const by = s.manY - 58;
-
-        ctx.shadowColor = "rgba(0,0,0,0.18)";
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetY = 4;
-
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#0f172a";
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, bubbleW, bubbleH, 12);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.shadowColor = "transparent";
-        ctx.beginPath();
-        if (showOnLeft) {
-          ctx.moveTo(bx + bubbleW, by + 10);
-          ctx.lineTo(s.manX - 2, s.manY - 26);
-          ctx.lineTo(bx + bubbleW, by + 18);
-        } else {
-          ctx.moveTo(bx, by + 10);
-          ctx.lineTo(s.manX + 2, s.manY - 26);
-          ctx.lineTo(bx, by + 18);
-        }
-        ctx.closePath();
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = s.manHitsCount >= 3 ? "#dc2626" : s.manHitsCount > 0 ? "#b45309" : "#0f172a";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(msg, bx + bubbleW / 2, by + bubbleH / 2 + 1);
-        ctx.restore();
-      }
-
-      // ARCHER ROBIN HOOD À GAUCHE
-      const bowX = s.bowX;
-      const bowY = s.bowY;
-
-      ctx.save();
-      ctx.fillStyle = "#94a3b8";
-      ctx.strokeStyle = "#475569";
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.roundRect(bowX - 60, bowY + 40, 70, 45, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = "#78350f";
-      ctx.beginPath();
-      ctx.roundRect(bowX - 42, bowY - 18, 12, 34, 4);
-      ctx.fill();
-      ctx.fillStyle = "#dc2626";
-      ctx.fillRect(bowX - 44, bowY - 26, 4, 10);
-      ctx.fillRect(bowX - 38, bowY - 28, 4, 12);
-
-      ctx.fillStyle = "#15803d";
-      ctx.beginPath();
-      ctx.roundRect(bowX - 35, bowY - 10, 24, 52, 7);
-      ctx.fill();
-
-      ctx.fillStyle = "#78350f";
-      ctx.fillRect(bowX - 35, bowY + 14, 24, 6);
-      ctx.fillStyle = "#facc15";
-      ctx.fillRect(bowX - 26, bowY + 13, 6, 8);
-
-      ctx.fillStyle = "#166534";
-      ctx.beginPath();
-      ctx.arc(bowX - 23, bowY - 24, 15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#facc15";
-      ctx.beginPath();
-      ctx.moveTo(bowX - 28, bowY - 32);
-      ctx.lineTo(bowX - 45, bowY - 48);
-      ctx.lineTo(bowX - 24, bowY - 36);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = "#fed7aa";
-      ctx.beginPath();
-      ctx.arc(bowX - 21, bowY - 22, 8.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(bowX - 17, -24 + bowY, 3, 3);
-
-      // Arc & Corde
-      const pullX = s.isDragging ? s.dragCurrentX : bowX;
-      const pullY = s.isDragging ? s.dragCurrentY : bowY;
-      const dragDist = Math.hypot(bowX - pullX, bowY - pullY);
-      const flexBonus = s.isDragging ? Math.min(dragDist * 0.15, 12) : 0;
-
-      ctx.strokeStyle = "#854d0e";
-      ctx.lineWidth = 5.5;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.arc(bowX + 6 - flexBonus, bowY, 34, -Math.PI / 2, Math.PI / 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = "#e2e8f0";
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.moveTo(bowX + 6 - flexBonus, bowY - 34);
-      ctx.lineTo(pullX, pullY);
-      ctx.lineTo(bowX + 6 - flexBonus, bowY + 34);
-      ctx.stroke();
-
-      if (s.isDragging) {
-        ctx.strokeStyle = "#fed7aa";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(bowX - 16, bowY);
-        ctx.lineTo(pullX, pullY);
-        ctx.stroke();
-      }
-
-      // BADGE AU-DESSUS DE L'ARCHER : NOMBRE DE FLÈCHES RESTANTES
-      ctx.font = '900 13px "Outfit", sans-serif';
-      const arrowBadgeText = `🏹 ${s.arrowsRemaining}`;
-      const badgeTextW = ctx.measureText(arrowBadgeText).width;
-      const badgePillW = badgeTextW + 16;
-      const badgePillH = 22;
-      const badgePillX = bowX - 23 - badgePillW / 2;
-      const badgePillY = bowY - 60;
-
-      ctx.shadowColor = "rgba(0,0,0,0.18)";
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetY = 2;
-
-      ctx.fillStyle = s.arrowsRemaining <= 1 ? "#fef2f2" : "#ffffff";
-      ctx.strokeStyle = s.arrowsRemaining <= 1 ? "#ef4444" : "#cbd5e1";
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.roundRect(badgePillX, badgePillY, badgePillW, badgePillH, 10);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.shadowColor = "transparent";
-      ctx.fillStyle = s.arrowsRemaining <= 1 ? "#dc2626" : "#0f172a";
-      ctx.textAlign = "center";
+      ctx.fillStyle = "#111827";
+      ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(arrowBadgeText, badgePillX + badgePillW / 2, badgePillY + badgePillH / 2 + 1);
-
+      ctx.fillText(text, bx + 9, by + 13);
       ctx.restore();
+    };
 
-      // TRAJECTOIRE PRÉDICTIVE (CONTRÔLÉE PAR STAGE CONFIG — 0 EN HARD !)
-      if (s.isDragging && stageConfig.trajectoryDots > 0) {
-        const dx = bowX - s.dragCurrentX;
-        const dy = bowY - s.dragCurrentY;
-        const dist = Math.min(Math.hypot(dx, dy), MAX_PULL);
-        const angle = Math.atan2(dy, dx);
-        const speed = dist * POWER_MULT;
-        const vx0 = Math.cos(angle) * speed;
-        const vy0 = Math.sin(angle) * speed;
+    const aimVector = () => {
+      const s = g.current;
+      const dx = (s.aimStart.x - s.aimCur.x);
+      const dy = (s.aimStart.y - s.aimCur.y);
+      const len = Math.hypot(dx, dy);
+      const cssMin = Math.min(canvas.clientWidth, canvas.clientHeight);
+      const power = Math.min(len / (0.32 * cssMin), 1);
+      return { angle: Math.atan2(dy, dx), power, len };
+    };
 
-        ctx.save();
-        const stepDt = 0.045;
-        const maxSteps = stageConfig.trajectoryDots;
-        let trajX = bowX;
-        let trajY = bowY;
-        let trajVx = vx0;
-        let trajVy = vy0;
+    const draw = () => {
+      const s = g.current;
+      const lv = s.level;
+      const W = s.W;
+      const sc = s.scale * s.dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // center world horizontally if canvas is wider/narrower than W
+      const offX = (canvas.width - W * sc) / 2;
+      ctx.setTransform(sc, 0, 0, sc, offX, 0);
 
-        for (let i = 0; i < maxSteps; i++) {
-          trajVy += GRAVITY * stepDt;
-          trajX += trajVx * stepDt;
-          trajY += trajVy * stepDt;
+      // Sky
+      const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
+      if (lv.sky === "night") { sky.addColorStop(0, "#0b1033"); sky.addColorStop(1, "#3b3f8f"); }
+      else if (lv.sky === "sunset") { sky.addColorStop(0, "#4c1d95"); sky.addColorStop(0.55, "#f97316"); sky.addColorStop(1, "#fde68a"); }
+      else { sky.addColorStop(0, "#38bdf8"); sky.addColorStop(1, "#e0f2fe"); }
+      ctx.fillStyle = sky;
+      ctx.fillRect(-offX / sc, 0, canvas.width / sc, GROUND);
 
-          const progress = i / maxSteps;
-          ctx.fillStyle = `rgba(239, 68, 68, ${0.9 - progress * 0.45})`;
-          ctx.beginPath();
-          const dotSize = Math.max(1.8, 4.4 - i * 0.1);
-          ctx.arc(trajX, trajY, dotSize, 0, Math.PI * 2);
-          ctx.fill();
-
-          if (i === 0) {
-            ctx.fillStyle = "#facc15";
-            ctx.beginPath();
-            ctx.arc(trajX, trajY, 6, 0, Math.PI * 2);
-            ctx.fill();
-          }
+      // Sun / moon / stars
+      if (lv.sky === "night") {
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        for (let i = 0; i < 40; i++) {
+          const sx = (i * 97.3) % W;
+          const sy = (i * 53.7) % (GROUND * 0.6);
+          ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(s.t + i));
+          ctx.fillRect(sx, sy, 2, 2);
         }
-        ctx.restore();
-
-        ctx.save();
-        ctx.translate(pullX, pullY);
-        ctx.rotate(angle);
-        ctx.strokeStyle = "#334155";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.moveTo(-10, 0);
-        ctx.lineTo(46, 0);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.moveTo(46, -5);
-        ctx.lineTo(58, 0);
-        ctx.lineTo(46, 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      } else if (s.isDragging) {
-        // En mode Hard (0 dots) : flèche sur la corde uniquement
-        const dx = bowX - s.dragCurrentX;
-        const dy = bowY - s.dragCurrentY;
-        const angle = Math.atan2(dy, dx);
-
-        ctx.save();
-        ctx.translate(pullX, pullY);
-        ctx.rotate(angle);
-        ctx.strokeStyle = "#334155";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.moveTo(-10, 0);
-        ctx.lineTo(46, 0);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.moveTo(46, -5);
-        ctx.lineTo(58, 0);
-        ctx.lineTo(46, 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Flèche active
-      if (s.activeArrow && s.activeArrow.inFlight) {
-        const arr = s.activeArrow;
-        ctx.save();
-        ctx.translate(arr.x, arr.y);
-        ctx.rotate(arr.angle);
-        ctx.strokeStyle = "#1e293b";
-        ctx.lineWidth = 3.2;
-        ctx.beginPath();
-        ctx.moveTo(-32, 0);
-        ctx.lineTo(14, 0);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.moveTo(14, -5);
-        ctx.lineTo(26, 0);
-        ctx.lineTo(14, 5);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = "#dc2626";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(-32, -4);
-        ctx.lineTo(-24, 0);
-        ctx.lineTo(-32, 4);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Flèches plantées
-      s.arrows.forEach((arr) => {
-        if (!arr.stuckOnMan && arr.stuck) {
-          ctx.save();
-          ctx.translate(arr.x, arr.y);
-          ctx.rotate(arr.angle);
-          ctx.strokeStyle = "#475569";
-          ctx.lineWidth = 2.8;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#f1f5f9";
+        ctx.beginPath(); ctx.arc(W * 0.78, 80, 26, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#0b1033";
+        ctx.beginPath(); ctx.arc(W * 0.78 + 10, 74, 22, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillStyle = lv.sky === "sunset" ? "#fde047" : "#fef08a";
+        ctx.beginPath(); ctx.arc(W * 0.3, lv.sky === "sunset" ? GROUND - 120 : 90, 34, 0, Math.PI * 2); ctx.fill();
+        // clouds
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        for (let i = 0; i < 3; i++) {
+          const cx = ((s.t * (8 + i * 4) + i * 300) % (W + 200)) - 100;
+          const cy = 60 + i * 45;
           ctx.beginPath();
-          ctx.moveTo(-28, 0);
-          ctx.lineTo(8, 0);
-          ctx.stroke();
-          ctx.fillStyle = "#dc2626";
-          ctx.beginPath();
-          ctx.moveTo(8, -4);
-          ctx.lineTo(16, 0);
-          ctx.lineTo(8, 4);
-          ctx.closePath();
+          ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.arc(cx + 20, cy - 8, 22, 0, Math.PI * 2); ctx.arc(cx + 44, cy, 17, 0, Math.PI * 2);
           ctx.fill();
-          ctx.restore();
+        }
+      }
+
+      // Hills
+      const hill = (color: string, base: number, amp: number, freq: number, ph: number) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-offX / sc, GROUND);
+        for (let x = -offX / sc; x <= W + offX / sc + 10; x += 12) ctx.lineTo(x, base - Math.sin(x * freq + ph) * amp - Math.sin(x * freq * 2.3) * amp * 0.4);
+        ctx.lineTo(W + offX / sc + 10, GROUND);
+        ctx.fill();
+      };
+      const night = lv.sky === "night";
+      hill(night ? "#1e2a5a" : "#86c06c", GROUND - 70, 26, 0.008, 1);
+      hill(night ? "#18224a" : "#5fa04e", GROUND - 30, 18, 0.013, 3);
+
+      // Ground
+      const gr = ctx.createLinearGradient(0, GROUND, 0, WORLD_H);
+      gr.addColorStop(0, night ? "#14532d" : "#4d9a3a");
+      gr.addColorStop(1, night ? "#052e16" : "#2f6b23");
+      ctx.fillStyle = gr;
+      ctx.fillRect(-offX / sc, GROUND, canvas.width / sc, WORLD_H - GROUND + 2);
+
+      // Wind indicator
+      if (lv.wind) {
+        const dir = Math.sign(lv.wind);
+        ctx.strokeStyle = "rgba(255,255,255,0.7)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 4; i++) {
+          const wx = ((s.t * 120 * dir + i * W / 4) % W + W) % W;
+          const wy = 150 + i * 70;
+          ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(wx + 30 * dir, wy); ctx.stroke();
+        }
+      }
+
+      // Obstacles
+      lv.obstacles.forEach((o, j) => {
+        const og = obstacleGeom(o, W, s.t);
+        ctx.save();
+        ctx.translate(og.cx, og.cy);
+        ctx.rotate(og.ang);
+        if (o.kind === "wall") {
+          ctx.fillStyle = "#78716c";
+          ctx.strokeStyle = "#44403c";
+          ctx.lineWidth = 2;
+          ctx.fillRect(-o.w / 2, -o.h / 2, o.w, o.h);
+          ctx.strokeRect(-o.w / 2, -o.h / 2, o.w, o.h);
+          ctx.strokeStyle = "rgba(0,0,0,0.25)";
+          for (let yy = -o.h / 2 + 18; yy < o.h / 2; yy += 18) { ctx.beginPath(); ctx.moveTo(-o.w / 2, yy); ctx.lineTo(o.w / 2, yy); ctx.stroke(); }
+        } else {
+          ctx.fillStyle = "#cbd5e1";
+          ctx.strokeStyle = "#334155";
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.roundRect(-o.w / 2, -o.h / 2, o.w, o.h, 4); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#334155";
+          ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+        }
+        // arrows stuck on it
+        s.arrows.forEach((a) => {
+          if (a.state === "stuck" && a.onObstacle === j) drawArrow(a.lx! - Math.cos(a.la!) * ARROW_LEN / 2, a.ly! - Math.sin(a.la!) * ARROW_LEN / 2, a.la!);
+        });
+        ctx.restore();
+      });
+
+      // Gallows + hostages
+      lv.hostages.forEach((h, i) => {
+        const hs = s.hostages[i];
+        if (!hs) return;
+        const px = h.x * W, py = h.y * WORLD_H;
+        const postX = postXOf(px, W);
+        const side = Math.sign(postX - px);
+        const beamL = Math.min(px, postX) - 10, beamR = Math.max(px, postX) + 6;
+        ctx.fillStyle = "#7c4a24";
+        ctx.strokeStyle = "#4a2c14";
+        ctx.lineWidth = 2;
+        ctx.fillRect(postX - 6, py - 8, 12, GROUND - py + 8);
+        ctx.strokeRect(postX - 6, py - 8, 12, GROUND - py + 8);
+        ctx.fillRect(beamL, py - 10, beamR - beamL, 10);
+        ctx.strokeRect(beamL, py - 10, beamR - beamL, 10);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "#7c4a24";
+        ctx.beginPath(); ctx.moveTo(postX, py + 34); ctx.lineTo(postX - 30 * side, py); ctx.stroke();
+        ctx.fillStyle = "#4a2c14";
+        ctx.fillRect(postX - 18, GROUND - 6, 36, 6);
+
+        const geo = hostageGeom(lv, i, hs, W, s.t);
+        // rope
+        ctx.strokeStyle = "#c8a165";
+        ctx.lineWidth = 3;
+        if (!hs.cut) {
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(geo.nx, geo.ny); ctx.stroke();
+        } else {
+          ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.sin(s.t * 3) * 4, py + 30); ctx.stroke();
+        }
+        drawMan(geo.nx, geo.ny, geo.dx, geo.dy, hs, !hs.cut);
+        // noose knot
+        if (!hs.cut) {
+          ctx.fillStyle = "#a07d48";
+          ctx.beginPath(); ctx.arc(geo.nx, geo.ny + 2, 4, 0, Math.PI * 2); ctx.fill();
+        }
+        // arrows stuck in this hostage
+        s.arrows.forEach((a) => {
+          if (a.state === "stuck" && a.onHostage === i) {
+            const [rx, ry] = rot(a.lx!, a.ly!, -geo.a);
+            const ang = a.la! - geo.a;
+            drawArrow(geo.nx + rx - Math.cos(ang) * ARROW_LEN / 2, geo.ny + ry - Math.sin(ang) * ARROW_LEN / 2, ang);
+          }
+        });
+        // breath bar
+        if (!hs.cut && !hs.dead) {
+          const ratio = hs.breath / h.breath;
+          const bw = 56;
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          ctx.beginPath(); ctx.roundRect(px - bw / 2 + 18, py - 30, bw, 9, 4); ctx.fill();
+          ctx.fillStyle = ratio > 0.5 ? "#22c55e" : ratio > 0.25 ? "#f59e0b" : "#ef4444";
+          ctx.beginPath(); ctx.roundRect(px - bw / 2 + 18, py - 30, bw * ratio, 9, 4); ctx.fill();
+        }
+        if (hs.speechT > 0 && hs.speech) {
+          if (hs.cut) bubble(geo.nx, geo.ny - 10, hs.speech, hs.speechT);
+          else bubble(geo.nx + geo.dx * 102, geo.ny + geo.dy * 102, hs.speech, hs.speechT, true);
         }
       });
 
-      // Particules
+      // Archer
+      const bow = bowPos(W);
+      let aimAng = -0.6, pull = 0;
+      if (s.aiming) {
+        const av = aimVector();
+        if (av.len > 8) { aimAng = av.angle; pull = av.power; }
+      }
+      // body
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(bow.x - 14, bow.y + 30); ctx.lineTo(bow.x - 22, GROUND); ctx.moveTo(bow.x - 14, bow.y + 30); ctx.lineTo(bow.x - 4, GROUND); ctx.stroke();
+      ctx.strokeStyle = "#0ea5e9";
+      ctx.lineWidth = 14;
+      ctx.beginPath(); ctx.moveTo(bow.x - 14, bow.y - 6); ctx.lineTo(bow.x - 14, bow.y + 32); ctx.stroke();
+      ctx.fillStyle = "#f2c9a0";
+      ctx.beginPath(); ctx.arc(bow.x - 14, bow.y - 20, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath(); ctx.arc(bow.x - 14, bow.y - 24, 11, Math.PI, Math.PI * 2); ctx.fill();
+      // bow + string
+      ctx.save();
+      ctx.translate(bow.x, bow.y);
+      ctx.rotate(aimAng);
+      ctx.strokeStyle = "#f2c9a0"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(4, 0); ctx.stroke();
+      ctx.strokeStyle = "#92400e"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(-6, 0, 30, -1.2, 1.2); ctx.stroke();
+      const sx = -6 + Math.cos(1.2) * 30;
+      const sy = Math.sin(1.2) * 30;
+      const pullX = sx - 8 - pull * 26;
+      ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx, -sy); ctx.lineTo(pullX, 0); ctx.lineTo(sx, sy); ctx.stroke();
+      if (s.phase === "play" && s.arrowsLeft > 0 && s.cooldown <= 0 && !s.pendingResult) {
+        ctx.restore();
+        drawArrow(bow.x + Math.cos(aimAng) * (pullX + ARROW_LEN / 2), bow.y + Math.sin(aimAng) * (pullX + ARROW_LEN / 2), aimAng);
+      } else ctx.restore();
+
+      // Trajectory preview
+      if (s.aiming) {
+        const av = aimVector();
+        if (av.len > 8) {
+          const sp = MIN_SPEED + av.power * (MAX_SPEED - MIN_SPEED);
+          let x = bow.x, y = bow.y, vx = Math.cos(av.angle) * sp, vy = Math.sin(av.angle) * sp;
+          const step = 0.045;
+          for (let i = 0; i < lv.guide; i++) {
+            for (let k = 0; k < 3; k++) {
+              vy += GRAVITY * step / 3; vx += (lv.wind ?? 0) * step / 3;
+              x += vx * step / 3; y += vy * step / 3;
+            }
+            if (y > GROUND) break;
+            ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / lv.guide) * 0.7})`;
+            ctx.beginPath(); ctx.arc(x, y, 3.2 - (i / lv.guide) * 1.6, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+      }
+
+      // Flying / ground arrows
+      s.arrows.forEach((a) => {
+        if (a.state === "fly") drawArrow(a.x, a.y, a.angle);
+        else if (a.state === "stuck" && a.onHostage === undefined && a.onObstacle === undefined) drawArrow(a.lx!, a.ly!, a.la!, 0.9);
+      });
+
+      // Particles
       s.particles.forEach((p) => {
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
         ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.alpha;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
       });
       ctx.globalAlpha = 1;
 
-      ctx.restore(); // Fin Camera Zoom
-
-      animId = requestAnimationFrame(render);
+      // Power meter while aiming (screen-space feel, top-left of archer)
+      if (s.aiming) {
+        const av = aimVector();
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.beginPath(); ctx.roundRect(bow.x - 30, GROUND + 14, 70, 10, 5); ctx.fill();
+        ctx.fillStyle = av.power > 0.85 ? "#ef4444" : av.power > 0.5 ? "#f59e0b" : "#22c55e";
+        ctx.beginPath(); ctx.roundRect(bow.x - 30, GROUND + 14, 70 * av.power, 10, 5); ctx.fill();
+      }
     };
 
-    animId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animId);
-  }, [difficulty, stageIndex, stageConfig]);
+    const loop = (now: number) => {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      if (g.current.phase !== "menu") update(dt);
+      draw();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
-  // ÉCOUTEURS POINTER
-  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    let x = (e.clientX - rect.left) * (960 / rect.width);
-    let y = (e.clientY - rect.top) * (540 / rect.height);
-
-    const currentZoom = zoomLevelRef.current;
-    if (currentZoom > 1.0) {
-      const targetCenterX = (stateRef.current.bowX + stageConfig.gallowsX) / 2;
-      const targetCenterY = (stateRef.current.bowY + stageConfig.gallowsY) / 2 - 20;
-      x = (x - 480) / currentZoom + targetCenterX;
-      y = (y - 270) / currentZoom + targetCenterY;
-    }
-
-    return { x, y };
+  // ---------- Input: drag ANYWHERE on the screen to aim (slingshot) ----------
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const s = g.current;
+    if (s.phase !== "play" || s.pendingResult || s.arrowsLeft <= 0 || s.cooldown > 0 || s.aiming) return;
+    unlockAudio();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    s.pointerId = e.pointerId;
+    s.aiming = true;
+    s.aimStart = { x: e.clientX, y: e.clientY };
+    s.aimCur = { x: e.clientX, y: e.clientY };
+    tone({ freq: 180, to: 260, dur: 0.2, type: "triangle", vol: 0.06 });
   };
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const s = stateRef.current;
-    if (gameStatus !== "aiming" || s.status !== "aiming" || arrowsLeft <= 0 || s.ropeCut) return;
-    if (s.activeArrow && s.activeArrow.inFlight) return;
-
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    s.isDragging = true;
-    const coords = getCanvasCoords(e);
-    s.dragCurrentX = coords.x;
-    s.dragCurrentY = coords.y;
-    playArcherySound("draw");
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const s = g.current;
+    if (!s.aiming || e.pointerId !== s.pointerId) return;
+    s.aimCur = { x: e.clientX, y: e.clientY };
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const s = stateRef.current;
-    if (!s.isDragging) return;
-    const coords = getCanvasCoords(e);
-    s.dragCurrentX = coords.x;
-    s.dragCurrentY = coords.y;
+  const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const s = g.current;
+    if (!s.aiming || e.pointerId !== s.pointerId) return;
+    s.aiming = false;
+    const dx = s.aimStart.x - e.clientX;
+    const dy = s.aimStart.y - e.clientY;
+    const len = Math.hypot(dx, dy);
+    const canvas = canvasRef.current!;
+    const cssMin = Math.min(canvas.clientWidth, canvas.clientHeight);
+    if (len < 14 || s.phase !== "play" || s.pendingResult) return;
+    const power = Math.min(len / (0.32 * cssMin), 1);
+    const angle = Math.atan2(dy, dx);
+    const sp = MIN_SPEED + power * (MAX_SPEED - MIN_SPEED);
+    const bow = bowPos(s.W);
+    s.arrows.push({ x: bow.x, y: bow.y, vx: Math.cos(angle) * sp, vy: Math.sin(angle) * sp, angle, state: "fly" });
+    s.arrowsLeft--;
+    s.shotsFired++;
+    s.cooldown = SHOT_COOLDOWN;
+    setArrowsLeft(s.arrowsLeft);
+    noise(0.18, 0.25, 1800, 0, 0.6);
+    tone({ freq: 420, to: 180, dur: 0.12, type: "triangle", vol: 0.1 });
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const s = stateRef.current;
-    if (!s.isDragging) return;
-    s.isDragging = false;
-
-    const dx = s.bowX - s.dragCurrentX;
-    const dy = s.bowY - s.dragCurrentY;
-    const pullDist = Math.hypot(dx, dy);
-
-    if (pullDist >= 14) {
-      const clampedPull = Math.min(pullDist, MAX_PULL);
-      const angle = Math.atan2(dy, dx);
-      const speed = clampedPull * POWER_MULT;
-
-      const newArrow: Arrow = {
-        x: s.bowX,
-        y: s.bowY,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        angle,
-        inFlight: true,
-        stuck: false,
-      };
-
-      s.activeArrow = newArrow;
-      const nextArrows = arrowsLeft - 1;
-      setArrowsLeft(nextArrows);
-      s.arrowsRemaining = nextArrows;
-      setGameStatus("flying");
-      s.status = "flying";
-      playArcherySound("shoot");
-    }
+  const onPointerCancel = () => {
+    g.current.aiming = false;
   };
 
-  const nextStage = () => {
-    if (stageIndex < 4) {
-      initStage(difficulty, stageIndex + 1);
-    } else {
-      initStage(difficulty, 0);
-    }
-  };
+  // Save progress when a level is won
+  const lastSaved = useRef<string>("");
+  useEffect(() => {
+    if (phase !== "won") return;
+    const key = `${levelIdx}-${result.stars}`;
+    if (lastSaved.current === key) return;
+    lastSaved.current = key;
+    const stars = [...progress.stars];
+    stars[levelIdx] = Math.max(stars[levelIdx] ?? 0, result.stars);
+    setProgress({ unlocked: Math.max(progress.unlocked, Math.min(levelIdx + 1, LEVELS.length - 1)), stars });
+  }, [phase, levelIdx, result.stars, progress, setProgress]);
 
-  const restartStage = () => {
-    initStage(difficulty, stageIndex);
-  };
+  const level = LEVELS[levelIdx];
+  const totalStars = progress.stars.reduce((a, b) => a + (b ?? 0), 0);
 
   return (
-    <main className={styles["archery-page"]}>
-      {/* HEADER */}
-      <div className={styles["archery-header"]}>
-        <button
-          className={styles["back-link"]}
-          onClick={() => router.push("/?select=1")}
-          id="btn-archery-back"
-        >
-          ← Rja3
+    <div className={styles.screen}>
+      {/* HUD */}
+      <div className={styles.hud}>
+        <button className={styles.hudBtn} onClick={() => (phase === "menu" ? router.push("/?select=1") : openMenu())} aria-label="Retour">
+          ←
         </button>
-        <div className={styles["archery-logo"]}>
-          <span className="gradient-text">Hangman Archery 🎯</span>
+        <div className={styles.hudTitle}>
+          {phase === "menu" ? "Hangman Archery 🎯" : `Niveau ${levelIdx + 1} · ${level.name}`}
         </div>
-        <div className={styles["header-badges"]}>
-          <div className={`${styles["badge-quiver"]} ${arrowsLeft <= 1 ? styles.danger : ""}`}>
-            <span>🏹</span>
-            <span>{arrowsLeft} flèches</span>
-          </div>
-          <button
-            className={`${styles["btn-header-tool"]} ${zoomLevel > 1.0 ? styles.active : ""}`}
-            onClick={() => setZoomLevel((z) => (z > 1.0 ? 1.0 : 1.35))}
-            title="Activer ou désactiver le zoom mobile"
-            id="btn-toggle-zoom"
-          >
-            <span>🔍</span>
-            <span>{zoomLevel > 1.0 ? "1.35x" : "1x"}</span>
-          </button>
-          <button
-            className={styles["btn-header-tool"]}
-            onClick={toggleFullscreen}
-            title="Mode plein écran (Mobile / PC)"
-            id="btn-toggle-fullscreen"
-          >
-            <span>⛶</span>
+        <div className={styles.hudRight}>
+          {phase !== "menu" && (
+            <span className={`${styles.quiver} ${arrowsLeft <= 1 ? styles.quiverLow : ""}`}>🏹 {arrowsLeft}</span>
+          )}
+          <button className={styles.hudBtn} onClick={() => setMutedState(!muted)} aria-label="Son">
+            {muted ? "🔇" : "🔊"}
           </button>
         </div>
       </div>
 
-      {/* RAPPEL MOBILE POUR ÉCRAN PAYSAGE */}
-      <span className={styles["mobile-hint-pill"]}>
-        📲 Tourne en paysage ou clique ⛶ pour plein écran
-      </span>
-
-      {/* SELECTEUR DE DIFFICULTÉ (3 Niveaux : Sahel, Moyen, Hard) */}
-      <div className={styles["diff-container"]}>
-        <div className={styles["diff-bar"]}>
-          <button
-            className={`${styles["diff-chip"]} ${
-              difficulty === "facile" ? styles["active-facile"] : ""
-            }`}
-            onClick={() => initStage("facile", 0)}
-            id="btn-diff-facile"
-          >
-            Sahel 🌱
-          </button>
-          <button
-            className={`${styles["diff-chip"]} ${
-              difficulty === "moyen" ? styles["active-moyen"] : ""
-            }`}
-            onClick={() => initStage("moyen", 0)}
-            id="btn-diff-moyen"
-          >
-            Moyen 🟡
-          </button>
-          <button
-            className={`${styles["diff-chip"]} ${
-              difficulty === "hard" ? styles["active-hard"] : ""
-            }`}
-            onClick={() => initStage("hard", 0)}
-            id="btn-diff-hard"
-          >
-            Hard 🔥
-          </button>
-        </div>
-        <span className={styles["diff-caption"]}>{currentDiffData.caption}</span>
-      </div>
-
-      {/* PROGRESSION SÉQUENTIELLE DES 5 NIVEAUX (1 -> 2 -> 3 -> 4 -> 5) */}
-      <div className={styles["stage-stepper-box"]}>
-        <div className={styles["stage-stepper"]}>
-          {[0, 1, 2, 3, 4].map((idx) => {
-            const isCurrent = stageIndex === idx;
-            const isUnlocked = idx <= unlockedLevels[difficulty];
-            const isCleared = idx < unlockedLevels[difficulty];
-
-            return (
-              <button
-                key={idx}
-                className={`
-                  ${styles["stage-dot-btn"]}
-                  ${isCurrent ? styles.current : ""}
-                  ${isCleared ? styles.cleared : ""}
-                  ${!isUnlocked ? styles.locked : ""}
-                `}
-                onClick={() => {
-                  if (isUnlocked) initStage(difficulty, idx);
-                }}
-                disabled={!isUnlocked}
-                title={isUnlocked ? `Niveau ${idx + 1}` : `Niveau ${idx + 1} verrouillé 🔒`}
-              >
-                {!isUnlocked ? "🔒" : isCleared ? "✓" : `Niv ${idx + 1}`}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className={styles["stage-info-bar"]}>
-          <span>{stageConfig.title}</span>
-          <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
-            {difficulty === "hard"
-              ? "🔥 Trajectoire courte & Corde minuscule — Hard Ultime !"
-              : "🎯 Vise la corde pour sauver l'humain !"}
-          </span>
-        </div>
-      </div>
-
-      {/* CANVAS ARENA CARD DESIGN WOW */}
-      <div ref={canvasCardRef} className={styles["canvas-card"]}>
+      <div className={styles.stage} ref={wrapRef}>
         <canvas
           ref={canvasRef}
-          width={960}
-          height={540}
-          className={styles["canvas-viewport"]}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+          className={styles.canvas}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onContextMenu={(e) => e.preventDefault()}
         />
 
-        {/* OVERLAYS VICTOIRE (rbaaht / troh niveau morah / roh niveau X) */}
-        {gameStatus === "won" && (
+        {phase === "play" && arrowsLeft === level.arrows && (
+          <div className={styles.dragHint}>👆 Hot sab3ek, jbed l&apos;lour w tlaq</div>
+        )}
+
+        {/* LEVEL SELECT */}
+        {phase === "menu" && (
           <div className={styles.overlay}>
-            <div style={{ fontSize: "3.6rem" }}>🏆</div>
-            <h2 className={styles["overlay-title"]} style={{ color: "#10b981" }}>
-              rbaaht !
-            </h2>
-            <p className={styles["overlay-desc"]}>
-              {stageIndex < 4 ? (
-                <>troh niveau morah</>
+            <div className={styles.panel}>
+              <h1 className={styles.panelTitle}>Sauvi l bnadem 🎯</h1>
+              <p className={styles.panelText}>
+                Qta3 l habl b l flèche qbel ma ykmal nefsou. <b>Ma tdarbouch f rasou!</b>
+              </p>
+              <div className={styles.starsTotal}>⭐ {totalStars} / {LEVELS.length * 3}</div>
+              <div className={styles.levelGrid}>
+                {LEVELS.map((lv, i) => {
+                  const locked = i > progress.unlocked;
+                  const st = progress.stars[i] ?? 0;
+                  return (
+                    <button key={i} className={`${styles.levelBtn} ${locked ? styles.levelLocked : ""}`} disabled={locked} onClick={() => startLevel(i)}>
+                      <span className={styles.levelNum}>{locked ? "🔒" : i + 1}</span>
+                      <span className={styles.levelStars}>{[0, 1, 2].map((k) => (k < st ? "★" : "☆")).join("")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INTRO */}
+        {phase === "intro" && (
+          <div className={styles.overlay}>
+            <div className={styles.panel}>
+              <div className={styles.levelTag}>Niveau {levelIdx + 1} / {LEVELS.length}</div>
+              <h2 className={styles.panelTitle}>{level.name}</h2>
+              <p className={styles.panelText}>{level.hint}</p>
+              <div className={styles.introInfo}>
+                <span>🏹 {level.arrows} flèches</span>
+                <span>🫁 {Math.min(...level.hostages.map((h) => h.breath))}s</span>
+                {level.wind ? <span>💨 ri7</span> : null}
+              </div>
+              <button className={styles.primary} onClick={beginPlay}>Yallah! 🏹</button>
+            </div>
+          </div>
+        )}
+
+        {/* RESULT */}
+        {(phase === "won" || phase === "lost") && (
+          <div className={styles.overlay}>
+            <div className={styles.panel}>
+              {phase === "won" ? (
+                <>
+                  <h2 className={styles.panelTitle}>Sauvitou! 🎉</h2>
+                  <div className={styles.bigStars}>
+                    {[0, 1, 2].map((k) => (
+                      <span key={k} className={k < result.stars ? styles.starOn : styles.starOff} style={{ animationDelay: `${k * 0.15}s` }}>★</span>
+                    ))}
+                  </div>
+                  <p className={styles.panelText}>
+                    {result.stars === 3 ? "Parfait! Kol flèche f blasetha 🔥" : result.stars === 2 ? "Mlih bezzaf!" : "Sauvitou, bessah b zehr 😅"}
+                  </p>
+                </>
               ) : (
-                <>Mabrouk ! Kémelt kamel les 5 niveaux en {currentDiffData.name} ! 🎉</>
+                <>
+                  <h2 className={styles.panelTitle}>Khsart 😢</h2>
+                  <p className={styles.panelText}>{result.reason}</p>
+                </>
               )}
-            </p>
-            <div className={styles["overlay-buttons"]}>
-              <button
-                className={`${styles["btn-action"]} ${styles["btn-action-primary"]}`}
-                onClick={nextStage}
-                id="btn-archery-next"
-              >
-                {stageIndex < 4 ? `roh niveau ${stageIndex + 2}` : "🔄 Rejouer le niveau"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* OVERLAYS DÉFAITE (dommage kamlou les fleche / OPTION RECOMMENCER PAS PLUS) */}
-        {gameStatus === "lost" && (
-          <div className={styles.overlay}>
-            <div style={{ fontSize: "3.6rem" }}>
-              {lossReason === "head" ? "😵" : lossReason === "body" ? "☠️" : "🏹"}
-            </div>
-            <h2 className={styles["overlay-title"]} style={{ color: "#ef4444" }}>
-              {lossReason === "head"
-                ? "ayyy rassi !"
-                : lossReason === "body"
-                ? "kamal 3liya khir !"
-                : "dommage kamlou les fleche"}
-            </h2>
-            <div className={styles["overlay-buttons"]}>
-              <button
-                className={`${styles["btn-action"]} ${styles["btn-action-primary"]}`}
-                onClick={restartStage}
-                id="btn-archery-retry"
-              >
-                🔄 Recommencer
-              </button>
+              <div className={styles.btnRow}>
+                <button className={styles.secondary} onClick={() => startLevel(levelIdx)}>🔄 3awed</button>
+                {phase === "won" && levelIdx < LEVELS.length - 1 && (
+                  <button className={styles.primary} onClick={() => startLevel(levelIdx + 1)}>Niveau jay →</button>
+                )}
+              </div>
+              <button className={styles.link} onClick={openMenu}>📋 Les niveaux</button>
             </div>
           </div>
         )}
       </div>
-
-      {/* ACTION CONTROLS */}
-      <div className={styles["actions-row"]}>
-        <button
-          className={styles["btn-action"]}
-          onClick={restartStage}
-          id="btn-archery-restart"
-        >
-          🔄 Recommencer
-        </button>
-        <button
-          className="btn-secondary"
-          style={{ flex: 1, justifyContent: "center" }}
-          onClick={() => router.push("/?select=1")}
-          id="btn-archery-menu"
-        >
-          🏠 Changer de jeu
-        </button>
-      </div>
-    </main>
-  );
-}
-
-export default function HangmanPage() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          className="page-wrapper"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100vh",
-          }}
-        >
-          <div style={{ fontSize: "3rem" }}>⏳</div>
-        </div>
-      }
-    >
-      <HangmanArcheryContent />
-    </Suspense>
+    </div>
   );
 }

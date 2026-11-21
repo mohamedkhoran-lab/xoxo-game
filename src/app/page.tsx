@@ -250,8 +250,8 @@ function HomeContent() {
             <button id="btn-game-hangman" className={`${styles["mode-card"]} ${styles["game-hangman"]}`} onClick={() => router.push("/hangman")}>
               <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🎯</span></div>
               <div className={styles["mode-card-content"]}>
-                <span className={styles["mode-card-title"]}>Hangman</span>
-                <span className={styles["mode-card-sub"]}>jeu te3 tsalak bnadem</span>
+                <span className={styles["mode-card-title"]}>Hangman Archery</span>
+                <span className={styles["mode-card-sub"]}>qta3 l habl w sauvi l bnadem 🏹</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
@@ -260,8 +260,8 @@ function HomeContent() {
             <button id="btn-game-football" className={`${styles["mode-card"]} ${styles["game-football"]}`} onClick={() => router.push("/football")}>
               <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>⚽</span></div>
               <div className={styles["mode-card-content"]}>
-                <span className={styles["mode-card-title"]}>Football</span>
-                <span className={styles["mode-card-sub"]}>te33 bolla</span>
+                <span className={styles["mode-card-title"]}>Football Hero</span>
+                <span className={styles["mode-card-sub"]}>tir, passe w effet — kima Score Hero</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
@@ -418,7 +418,7 @@ function HomeContent() {
               </div>
               <div className={styles["mode-card-content"]}>
                 <span className={styles["mode-card-title"]}>niveau dificille w salek rohek</span>
-                <span className={styles["mode-card-sub"]}>11 tubes — pour les vrais pros</span>
+                <span className={styles["mode-card-sub"]}>14 tubes, 12 couleurs, bla icônes — pour les vrais pros 🔥</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>

@@ -1,20 +1,28 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense } from "react";
 import styles from "./water-sort.module.css";
+import { useIsClient } from "../lib/useStored";
+import { DIFFS, Difficulty, TUBE_CAPACITY, generateLevel as generate } from "./generator";
 
-// 9 Pure, Universal High-Contrast Colors with Clear Icons (NO Blanc, NO Gris, NO ambiguous Orange)
+const generateLevel = (d: Difficulty) => generate(d, COLOR_NAMES);
+
+// 12 high-contrast colours. Easy/medium use the first 4/6 (with icons);
+// hard uses all 12 with colours ONLY, so you must read the colours.
 const PALETTE: { name: string; icon: string; hex: string; gradient: string }[] = [
   { name: "Rouge",  icon: "🔴", hex: "#ef4444", gradient: "linear-gradient(180deg, #f87171, #b91c1c)" },
   { name: "Bleu",   icon: "🔵", hex: "#2563eb", gradient: "linear-gradient(180deg, #60a5fa, #1d4ed8)" },
-  { name: "Vert",   icon: "🟢", hex: "#16a34a", gradient: "linear-gradient(180deg, #4ade80, #15803d)" },
-  { name: "Jaune",  icon: "🟡", hex: "#facc15", gradient: "linear-gradient(180deg, #fef08a, #ca8a04)" },
-  { name: "Violet", icon: "🟣", hex: "#9333ea", gradient: "linear-gradient(180deg, #c084fc, #7e22ce)" },
+  { name: "Vert",   icon: "🟢", hex: "#15803d", gradient: "linear-gradient(180deg, #22c55e, #14532d)" },
+  { name: "Jaune",  icon: "🟡", hex: "#facc15", gradient: "linear-gradient(180deg, #fef08a, #eab308)" },
+  { name: "Violet", icon: "🟣", hex: "#7e22ce", gradient: "linear-gradient(180deg, #a855f7, #581c87)" },
   { name: "Cyan",   icon: "🩵", hex: "#06b6d4", gradient: "linear-gradient(180deg, #67e8f9, #0891b2)" },
-  { name: "Rose",   icon: "🌸", hex: "#ec4899", gradient: "linear-gradient(180deg, #f472b6, #be185d)" },
-  { name: "Noir",   icon: "⚫", hex: "#09090b", gradient: "linear-gradient(180deg, #3f3f46, #09090b)" },
-  { name: "Marron", icon: "🟤", hex: "#78350f", gradient: "linear-gradient(180deg, #b45309, #451a03)" },
+  { name: "Rose",   icon: "🌸", hex: "#ec4899", gradient: "linear-gradient(180deg, #f9a8d4, #db2777)" },
+  { name: "Noir",   icon: "⚫", hex: "#18181b", gradient: "linear-gradient(180deg, #3f3f46, #09090b)" },
+  { name: "Marron", icon: "🟤", hex: "#78350f", gradient: "linear-gradient(180deg, #a16207, #451a03)" },
+  { name: "Orange", icon: "🟠", hex: "#f97316", gradient: "linear-gradient(180deg, #fdba74, #ea580c)" },
+  { name: "Citron", icon: "🍋", hex: "#a3e635", gradient: "linear-gradient(180deg, #d9f99d, #84cc16)" },
+  { name: "Gris",   icon: "🩶", hex: "#64748b", gradient: "linear-gradient(180deg, #94a3b8, #475569)" },
 ];
 
 // Web Audio sound synthesizer for liquid sounds
@@ -80,64 +88,8 @@ function playWaterSound(type: "select" | "pour" | "error" | "win") {
   } catch {}
 }
 
-const TUBE_CAPACITY = 4;
-type Difficulty = "facile" | "moyen" | "difficile";
-
-// Generate level tubes: 1 tube per distinct color + 2 empty tubes
-function generateLevel(diff: Difficulty): string[][] {
-  let colorCount = 4;
-  if (diff === "facile") {
-    // 4 colors + 2 empty = 6 tubes
-    colorCount = 4;
-  } else if (diff === "moyen") {
-    // 6 colors + 2 empty = 8 tubes
-    colorCount = 6;
-  } else {
-    // 9 colors + 2 empty = 11 tubes
-    colorCount = 9;
-  }
-
-  const colorsInLevel = PALETTE.slice(0, colorCount).map((p) => p.name);
-
-  // Pool of units (4 units per color)
-  const pool: string[] = [];
-  colorsInLevel.forEach((c) => {
-    for (let i = 0; i < TUBE_CAPACITY; i++) {
-      pool.push(c);
-    }
-  });
-
-  // Thorough Fisher-Yates shuffle
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-
-  // Create filled tubes
-  const tubes: string[][] = [];
-  for (let i = 0; i < colorCount; i++) {
-    tubes.push(pool.slice(i * TUBE_CAPACITY, (i + 1) * TUBE_CAPACITY));
-  }
-
-  // Ensure no tube starts already 100% solved
-  for (let i = 0; i < tubes.length; i++) {
-    if (tubes[i].every((c) => c === tubes[i][0])) {
-      const other = (i + 1) % tubes.length;
-      const swapIdx = tubes[other].findIndex((c) => c !== tubes[i][0]);
-      if (swapIdx !== -1) {
-        const temp = tubes[i][0];
-        tubes[i][0] = tubes[other][swapIdx];
-        tubes[other][swapIdx] = temp;
-      }
-    }
-  }
-
-  // Add 2 empty tubes
-  tubes.push([]);
-  tubes.push([]);
-
-  return tubes;
-}
+const COLOR_NAMES = PALETTE.map((p) => p.name);
+const TUBE_LABEL: Record<Difficulty, string> = { facile: "6 Tubes", moyen: "8 Tubes", difficile: "14 Tubes" };
 
 function WaterSortContent() {
   const router = useRouter();
@@ -159,6 +111,9 @@ function WaterSortContent() {
   const [selectedTube, setSelectedTube] = useState<number | null>(null);
   const [moves, setMoves] = useState(0);
   const [isWon, setIsWon] = useState(false);
+  const [undosUsed, setUndosUsed] = useState(0);
+  const cfg = DIFFS[difficulty];
+  const undosLeft = cfg.undos - undosUsed;
 
   // Restart puzzle
   const restartLevel = useCallback(() => {
@@ -167,6 +122,7 @@ function WaterSortContent() {
     setSelectedTube(null);
     setMoves(0);
     setIsWon(false);
+    setUndosUsed(0);
   }, [initialState]);
 
   // New puzzle
@@ -179,6 +135,7 @@ function WaterSortContent() {
     setSelectedTube(null);
     setMoves(0);
     setIsWon(false);
+    setUndosUsed(0);
   }, []);
 
   // Switch difficulty
@@ -189,7 +146,8 @@ function WaterSortContent() {
 
   // Undo move
   const undo = () => {
-    if (history.length === 0 || isWon) return;
+    if (history.length === 0 || isWon || undosLeft <= 0) return;
+    setUndosUsed((u) => u + 1);
     const prev = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
     setTubes(prev);
@@ -299,7 +257,7 @@ function WaterSortContent() {
           <span className="gradient-text">Water Sort 🧪</span>
         </div>
         <div className={styles["badge-watersort"]}>
-          {difficulty === "facile" ? "6 Tubes" : difficulty === "moyen" ? "8 Tubes" : "11 Tubes"}
+          {TUBE_LABEL[difficulty]}
         </div>
       </div>
 
@@ -340,13 +298,13 @@ function WaterSortContent() {
           className={`${styles["diff-chip"]} ${difficulty === "difficile" ? styles.active : ""}`}
           onClick={() => handleDiffChange("difficile")}
         >
-          Difficile (11 tubes)
+          Difficile (14 tubes)
         </button>
       </div>
 
       {/* Tubes Arena */}
       <div className={styles["arena-card"]}>
-        <div className={styles["tubes-container"]}>
+        <div className={`${styles["tubes-container"]} ${difficulty === "difficile" ? styles["tubes-hard"] : ""}`}>
           {tubes.map((tube, tIdx) => {
             const isSelected = selectedTube === tIdx;
             const isSolved = tube.length === TUBE_CAPACITY && tube.every((c) => c === tube[0]);
@@ -374,7 +332,7 @@ function WaterSortContent() {
                         background: colorObj.gradient,
                       }}
                     >
-                      <span className={styles["liquid-icon"]}>{colorObj.icon}</span>
+                      {cfg.icons && <span className={styles["liquid-icon"]}>{colorObj.icon}</span>}
                     </div>
                   );
                 })}
@@ -403,7 +361,9 @@ function WaterSortContent() {
       </div>
 
       <p className={styles.hint}>
-        cliquer 3la tube tahakmeh w zawej tfaragh fih
+        {difficulty === "difficile"
+          ? "Mode hard: ghir les couleurs, 5 annulations bark — fakker qbel ma tsabb 🧠"
+          : "cliquer 3la tube tahakmeh w zawej tfaragh fih"}
       </p>
 
       {/* Control Actions */}
@@ -412,9 +372,9 @@ function WaterSortContent() {
           id="btn-watersort-undo"
           className={styles["btn-action"]}
           onClick={undo}
-          disabled={history.length === 0 || isWon}
+          disabled={history.length === 0 || isWon || undosLeft <= 0}
         >
-          ↩️ Annuler ({history.length})
+          ↩️ Annuler {Number.isFinite(cfg.undos) ? `(${undosLeft} b9aw)` : `(${history.length})`}
         </button>
         <button
           id="btn-watersort-restart"
@@ -444,6 +404,12 @@ function WaterSortContent() {
   );
 }
 
+// Puzzles are random: generate them only in the browser so server HTML never mismatches.
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const isClient = useIsClient();
+  return isClient ? <>{children}</> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontSize: "3rem" }}>⏳</div>;
+}
+
 export default function WaterSortPage() {
   return (
     <Suspense
@@ -456,7 +422,9 @@ export default function WaterSortPage() {
         </div>
       }
     >
-      <WaterSortContent />
+      <ClientOnly>
+        <WaterSortContent />
+      </ClientOnly>
     </Suspense>
   );
 }
