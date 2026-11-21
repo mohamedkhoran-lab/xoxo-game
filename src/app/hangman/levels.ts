@@ -133,9 +133,9 @@ export const LEVELS: Level[] = [
     hint: "Tlata bnadem… nta l'héros 🦸",
     arrows: 7, guide: 5, sky: "night", wind: -60,
     hostages: [
-      { x: 0.55, y: 0.2, rope: 90, swing: 0.3, swingSpeed: 2, breath: 30 },
-      { x: 0.72, y: 0.12, rope: 130, breath: 30 },
-      { x: 0.9, y: 0.16, rope: 100, swing: 0.4, swingSpeed: 1.6, breath: 30 },
+      { x: 0.48, y: 0.2, rope: 90, swing: 0.2, swingSpeed: 2, breath: 30 },
+      { x: 0.69, y: 0.12, rope: 130, breath: 30 },
+      { x: 0.9, y: 0.16, rope: 100, swing: 0.25, swingSpeed: 1.6, breath: 30 },
     ],
     obstacles: [{ kind: "blade", x: 0.42, y: 0.4, w: 120, h: 10, spin: -2.2 }],
   },

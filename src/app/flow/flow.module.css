@@ -1,0 +1,30 @@
+/* ===== FLOW — neon board ===== */
+.board {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  border-radius: 18px;
+  touch-action: none; /* dragging on the board never scrolls or zooms the page */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.path {
+  transition: opacity 0.2s ease;
+}
+
+.halo {
+  pointer-events: none;
+}
+
+/* dots that still need a connection breathe gently */
+.dotIdle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.86); }
+}

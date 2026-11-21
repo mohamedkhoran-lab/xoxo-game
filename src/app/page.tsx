@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import styles from "./page.module.css";
 
 // Floating background decorations
@@ -26,6 +26,8 @@ function HomeContent() {
     directSelect === "chess"     ? 6 :
     directSelect === "pong"      ? 7 :
     directSelect === "watersort" ? 8 :
+    directSelect === "pipes"     ? 9 :
+    directSelect === "flow"      ? 10 :
     0;
 
   const [step, setStep] = useState(initialStep);
@@ -64,7 +66,7 @@ function HomeContent() {
       {/* Progress dots */}
       <div className={styles["progress-dots"]}>
         {[0, 1, 2, 4].map((stepIndex) => {
-          const isActive = [5, 6, 7, 8].includes(step) ? stepIndex === 1 : step === stepIndex;
+          const isActive = [5, 6, 7, 8, 9, 10].includes(step) ? stepIndex === 1 : step === stepIndex;
           return (
             <div key={stepIndex} className={`${styles.dot} ${isActive ? styles.active : ""}`} />
           );
@@ -222,6 +224,26 @@ function HomeContent() {
               <div className={styles["mode-card-content"]}>
                 <span className={styles["mode-card-title"]}>Water Sort</span>
                 <span className={styles["mode-card-sub"]}>jeu prefere ta3i heda</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
+            {/* PIPES */}
+            <button id="btn-game-pipes" className={`${styles["mode-card"]} ${styles["game-pipes"]}`} onClick={() => goToStep(9)}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🚰</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Pipes</span>
+                <span className={styles["mode-card-sub"]}>jeu te3 lma bech yfout</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+
+            {/* FLOW */}
+            <button id="btn-game-flow" className={`${styles["mode-card"]} ${styles["game-flow"]}`} onClick={() => goToStep(10)}>
+              <div className={styles["game-card-icon"]}><span style={{ fontSize: "1.7rem" }}>🌈</span></div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>Flow</span>
+                <span className={styles["mode-card-sub"]}>jeu chbeb w khtouta mayatla9awch</span>
               </div>
               <span className={styles["mode-card-arrow"]}>→</span>
             </button>
@@ -428,6 +450,114 @@ function HomeContent() {
             onClick={() => goToStep(1)}
             id="btn-change-game-watersort"
           >
+            ← baghi nbadel jeu
+          </button>
+        </div>
+      )}
+
+      {/* ====== STEP 9 — PIPES DIFFICULTY SELECTION ====== */}
+      {step === 9 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step9">
+          <h2 className={styles["mode-title"]}>khtar le niveau</h2>
+          <div className={styles["mode-cards"]}>
+            <button
+              id="btn-pipes-easy"
+              className={`${styles["mode-card"]} ${styles.friend}`}
+              onClick={() => router.push("/pipes?diff=facile")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🌱</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau sahel aaa d3iff</span>
+                <span className={styles["mode-card-sub"]}>4×4 — rabet lma b tuyaux, bla fuites</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+            <button
+              id="btn-pipes-medium"
+              className={`${styles["mode-card"]} ${styles.friend}`}
+              onClick={() => router.push("/pipes?diff=moyen")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🟡</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau moyen chwiya</span>
+                <span className={styles["mode-card-sub"]}>6×6 — tuyaux mkaflin 🔒 w boucles</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+            <button
+              id="btn-pipes-hard"
+              className={`${styles["mode-card"]} ${styles.machine}`}
+              onClick={() => router.push("/pipes?diff=difficile")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🔥</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau dificille w salek rohek</span>
+                <span className={styles["mode-card-sub"]}>8×8 — l&apos;hard: kol tuyau lazem yetmla</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+          </div>
+          <button className={styles["btn-back-step"]} onClick={() => goToStep(1)} id="btn-change-game-pipes">
+            ← baghi nbadel jeu
+          </button>
+        </div>
+      )}
+
+      {/* ====== STEP 10 — FLOW DIFFICULTY SELECTION ====== */}
+      {step === 10 && (
+        <div className={`${styles.step} ${!visible ? styles.stepOut : styles.stepIn}`} key="step10">
+          <h2 className={styles["mode-title"]}>khtar le niveau</h2>
+          <div className={styles["mode-cards"]}>
+            <button
+              id="btn-flow-easy"
+              className={`${styles["mode-card"]} ${styles.friend}`}
+              onClick={() => router.push("/flow?diff=facile")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🌱</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau sahel aaa d3iff</span>
+                <span className={styles["mode-card-sub"]}>5×5 — 4 couleurs, khfif</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+            <button
+              id="btn-flow-medium"
+              className={`${styles["mode-card"]} ${styles.friend}`}
+              onClick={() => router.push("/flow?diff=moyen")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🟡</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau moyen chwiya</span>
+                <span className={styles["mode-card-sub"]}>7×7 — 6 couleurs, fakker mlih</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+            <button
+              id="btn-flow-hard"
+              className={`${styles["mode-card"]} ${styles.machine}`}
+              onClick={() => router.push("/flow?diff=difficile")}
+            >
+              <div className={styles["game-card-icon"]}>
+                <span style={{ fontSize: "1.6rem" }}>🔥</span>
+              </div>
+              <div className={styles["mode-card-content"]}>
+                <span className={styles["mode-card-title"]}>niveau dificille w salek rohek</span>
+                <span className={styles["mode-card-sub"]}>9×9 — 9 couleurs, kol case lazem tetmla 🔥</span>
+              </div>
+              <span className={styles["mode-card-arrow"]}>→</span>
+            </button>
+          </div>
+          <button className={styles["btn-back-step"]} onClick={() => goToStep(1)} id="btn-change-game-flow">
             ← baghi nbadel jeu
           </button>
         </div>

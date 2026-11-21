@@ -57,7 +57,7 @@ function distToSeg(px: number, py: number, x1: number, y1: number, x2: number, y
 /** Pendulum geometry of hostage i at time t (world units). */
 function hostageGeom(lv: Level, i: number, hs: HostageState, W: number, t: number) {
   const h = lv.hostages[i];
-  const px = h.x * W;
+  const px = hostageX(h.x, W);
   const py = h.y * WORLD_H;
   if (hs.cut) {
     // Upright, falling or standing on the ground
@@ -77,9 +77,15 @@ function obstacleGeom(o: Level["obstacles"][number], W: number, t: number) {
   return { cx, cy, ang };
 }
 
-/** Gallows post sits right of the rope, or left if it would leave the screen. */
-function postXOf(px: number, W: number) {
-  return px + 46 <= W - 12 ? px + 46 : px - 46;
+/** Rope x position. Levels use fractions up to 0.9; they are stretched so that the
+ *  gallows post (always on the FAR side of the rope, away from the archer) stays on screen. */
+function hostageX(frac: number, W: number) {
+  return (frac * (W - 60)) / 0.9;
+}
+
+/** The post is always to the right of the rope so it never stands between the archer and the rope. */
+function postXOf(px: number) {
+  return px + 46;
 }
 
 /** Rotate a vector by angle th. */
@@ -357,17 +363,7 @@ export default function HangmanPage() {
           }
           if (a.state !== "fly") break;
 
-          // gallows posts are solid too
-          for (let i = 0; i < lv.hostages.length; i++) {
-            const postX = postXOf(lv.hostages[i].x * W, W);
-            const topY = lv.hostages[i].y * WORLD_H - 8;
-            if (Math.abs(tx - postX) < 7 && ty > topY && ty < GROUND) {
-              a.state = "stuck"; a.lx = a.x; a.ly = a.y; a.la = a.angle;
-              noise(0.08, 0.3, 700);
-              break;
-            }
-          }
-          if (a.state !== "fly") break;
+          // (gallows posts are scenery: arrows only interact with ropes, bodies and obstacles)
 
           if (ty >= GROUND) {
             a.state = "stuck";
@@ -636,8 +632,8 @@ export default function HangmanPage() {
       lv.hostages.forEach((h, i) => {
         const hs = s.hostages[i];
         if (!hs) return;
-        const px = h.x * W, py = h.y * WORLD_H;
-        const postX = postXOf(px, W);
+        const px = hostageX(h.x, W), py = h.y * WORLD_H;
+        const postX = postXOf(px);
         const side = Math.sign(postX - px);
         const beamL = Math.min(px, postX) - 10, beamR = Math.max(px, postX) + 6;
         ctx.fillStyle = "#7c4a24";
