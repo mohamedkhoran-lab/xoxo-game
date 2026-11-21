@@ -12,11 +12,12 @@ import { E, N, PIPE_DIFFS, S, W, Difficulty, Tile, analyse, generatePuzzle } fro
 const DIFF_ORDER: Difficulty[] = ["facile", "moyen", "difficile"];
 const DIFF_NAME: Record<Difficulty, string> = { facile: "Sahel", moyen: "Moyen", difficile: "Hard 🔥" };
 
+// Arms overshoot the tile edge by 1.5 units so neighbouring pipes join without a seam
 const ARMS: [number, number, number][] = [
-  [N, 50, 0],
-  [E, 100, 50],
-  [S, 50, 100],
-  [W, 0, 50],
+  [N, 50, -1.5],
+  [E, 101.5, 50],
+  [S, 50, 101.5],
+  [W, -1.5, 50],
 ];
 const EDGE: [number, number, number][] = [
   [N, 50, 7],
@@ -186,7 +187,10 @@ function PipesGame({ initial }: { initial: Difficulty }) {
       </div>
 
       <div className={`${ui.frame} ${won ? ui.frameWin : ""}`}>
-        <div className={styles.board} style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
+        <div
+          className={styles.board}
+          style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${n}, minmax(0, 1fr))` }}
+        >
           {tiles.map((t, i) => (
             <Cell
               key={i}
